@@ -789,8 +789,11 @@ fn password_profile_without_saved_password_lets_ssh_ask() {
         stderr.contains("ssh will ask") || stderr.contains("no saved password"),
         "{stderr}"
     );
-    // connecting gave the hand-written profile an id, needed to save a password later
-    assert!(fs::read_to_string(&env.config).unwrap().contains("id = "));
+    // With a usable credential store (none on Linux CI), connecting gave the hand-written
+    // profile an id, needed to save a password later. Without one, the file is left alone.
+    if stderr.contains("no saved password") {
+        assert!(fs::read_to_string(&env.config).unwrap().contains("id = "));
+    }
 }
 
 #[test]

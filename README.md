@@ -358,22 +358,44 @@ lopi restore lopi-backup-20261001.age
 
 ## Shell completion
 
-Completes profile names and commands. `cmd.exe` is not supported.
+Press Tab to complete profile names (after `lopi`, `lopi connect`, `edit`, `passwd` and
+`rm`), command names, and shell names (after `lopi completion`). Works in bash, zsh and
+PowerShell; `cmd.exe` is not supported.
+
+Set it up once per shell. The first line adds lopi to the shell's startup file; the
+second loads it into the terminal that is already open (new terminals load it by
+themselves). Run each pair only once.
 
 ```sh
-# bash: add to ~/.bashrc
-eval "$(lopi completion bash)"
+# bash (Linux, Git Bash on Windows)
+echo 'eval "$(lopi completion bash)"' >> ~/.bashrc
+source ~/.bashrc
 
-# zsh (the default shell on macOS): add to ~/.zshrc, after compinit
-eval "$(lopi completion zsh)"
+# bash on macOS: Terminal starts bash as a login shell, which reads ~/.bash_profile
+echo 'eval "$(lopi completion bash)"' >> ~/.bash_profile
+source ~/.bash_profile
+
+# zsh (the default shell on macOS)
+echo 'eval "$(lopi completion zsh)"' >> ~/.zshrc
+source ~/.zshrc
 ```
+
+For zsh, `compinit` must run before that line. If `~/.zshrc` has no `compinit`, put
+`autoload -Uz compinit && compinit` above it.
 
 ```powershell
-# PowerShell: add to $PROFILE
-lopi completion powershell | Out-String | Invoke-Expression
+# PowerShell
+if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
+Add-Content $PROFILE 'lopi completion powershell | Out-String | Invoke-Expression'
+. $PROFILE
 ```
 
-On Windows, `lopi install --completion` sets up PowerShell for you.
+On Windows, `lopi install --completion` does the PowerShell part for you. If PowerShell
+says running scripts is disabled, allow your own profile with
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+To check, type `lopi ` (with a space) and press Tab twice: you should see your profiles
+and lopi's commands, not a list of files.
 
 ## Where lopi keeps its files
 

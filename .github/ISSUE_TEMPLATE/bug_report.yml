@@ -1,0 +1,74 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Before you paste anything, replace real host names, IP
+        addresses and user names with placeholders (for example `server.example.com` and
+        `admin`). Never paste passwords, private keys or backup files.
+
+        Found a security problem? Do not open an issue; see SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead. Include the full error message.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran, and the relevant part of your profiles file (with placeholders).
+      placeholder: |
+        1. lopi add test admin@server.example.com -p 2222
+        2. lopi test
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: lopi version
+      description: Output of `lopi --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: shell
+    attributes:
+      label: Shell
+      options:
+        - PowerShell 7+
+        - Windows PowerShell 5.1
+        - cmd
+        - Git Bash
+        - bash
+        - zsh
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: ssh-version
+    attributes:
+      label: ssh version
+      description: Output of `ssh -V`
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: lopi doctor
+      description: Output of `lopi doctor` (with host and user names replaced)
+      render: text

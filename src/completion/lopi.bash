@@ -6,7 +6,7 @@ _lopi() {
     local sub=${COMP_WORDS[1]}
     if [[ $COMP_CWORD -eq 1 ]]; then
         COMPREPLY=($(compgen -W "$(lopi __complete 2>/dev/null) @SUBCOMMANDS@" -- "$cur"))
-    elif [[ $COMP_CWORD -eq 2 && ($sub == rm || $sub == edit || $sub == connect) ]]; then
+    elif [[ $COMP_CWORD -eq 2 && " @PROFILE_SUBCOMMANDS@ " == *" $sub "* ]]; then
         COMPREPLY=($(compgen -W "$(lopi __complete 2>/dev/null)" -- "$cur"))
     elif [[ $COMP_CWORD -eq 2 && $sub == completion ]]; then
         COMPREPLY=($(compgen -W "@SHELLS@" -- "$cur"))

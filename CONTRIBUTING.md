@@ -127,6 +127,8 @@ These hold everywhere; a change that breaks one needs a very good reason.
   `RESERVED_NAMES` (`src/config/model.rs`). Add every new subcommand there. Such names are
   rejected by `add`, cause a warning on load, and can still be reached with
   `lopi connect <name>`.
+- **Completion.** A new subcommand that takes an existing profile name must be added to
+  `PROFILE_SUBCOMMANDS` (`src/completion/mod.rs`), so Tab completes profile names after it.
 - **Name matching.** `resolve::resolve` accepts the exact name only. When it is not
   found, the error suggests, in this order, the same name in another letter case, names
   that start with what was typed, or likely typos. Names that differ only in letter case

@@ -809,6 +809,59 @@ fn completion_scripts_are_printed() {
     env.cmd().args(["completion", "cmd"]).assert().code(2);
 }
 
+/// Runs the real bash completion function: profile names after the commands that take an
+/// existing profile, never after `add` (a new name) or `list` (no name).
+#[cfg(unix)]
+#[test]
+fn bash_completes_profile_names_where_a_profile_is_expected() {
+    let env = Env::new();
+    env.ok(&["add", "kantor", "h"]);
+    env.ok(&["add", "vps", "h"]);
+    let bin_dir = std::path::Path::new(env!("CARGO_BIN_EXE_lopi"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    let path = std::env::join_paths(
+        std::iter::once(bin_dir).chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let complete = |words: &str, cword: usize| -> Vec<String> {
+        let script = format!(
+            "eval \"$(lopi completion bash)\"; COMP_WORDS=({words}); COMP_CWORD={cword}; \
+             _lopi; printf '%s\\n' \"${{COMPREPLY[@]}}\""
+        );
+        let out = std::process::Command::new("bash")
+            .args(["-c", &script])
+            .env("PATH", &path)
+            .env("LOPI_CONFIG", &env.config)
+            .env("LOPI_DATA_DIR", env.dir.path().join("data"))
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        lines(&out.stdout)
+            .into_iter()
+            .filter(|line| !line.is_empty())
+            .collect()
+    };
+
+    for sub in ["rm", "edit", "connect", "passwd"] {
+        let got = complete(&format!("lopi {sub} \"\""), 2);
+        assert!(
+            got.contains(&"kantor".to_string()) && got.contains(&"vps".to_string()),
+            "{sub}: {got:?}"
+        );
+    }
+    for sub in ["add", "list"] {
+        let got = complete(&format!("lopi {sub} \"\""), 2);
+        assert!(!got.contains(&"kantor".to_string()), "{sub}: {got:?}");
+    }
+    assert_eq!(complete("lopi ka", 1), ["kantor"]);
+}
+
 /// Unix only: on Windows these commands change the real user PATH (registry) and
 /// PowerShell profiles, which tests must never touch. Windows is verified by hand.
 #[cfg(unix)]

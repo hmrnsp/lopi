@@ -8,7 +8,7 @@ _lopi() {
   subcommands=(@SUBCOMMANDS@)
   if (( CURRENT == 2 )); then
     compadd -a profiles subcommands
-  elif (( CURRENT == 3 )) && [[ ${words[2]} == (rm|edit|connect) ]]; then
+  elif (( CURRENT == 3 )) && [[ ${words[2]} == (@PROFILE_SUBCOMMANDS@) ]]; then
     compadd -a profiles
   elif (( CURRENT == 3 )) && [[ ${words[2]} == completion ]]; then
     compadd @SHELLS@

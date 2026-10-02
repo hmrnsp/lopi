@@ -11,7 +11,7 @@ Register-ArgumentCompleter -Native -CommandName lopi, lopi.exe -ScriptBlock {
     $candidates = @()
     if ($index -eq 1) {
         $candidates = @(lopi __complete 2>$null) + @(@SUBCOMMANDS@)
-    } elseif ($index -eq 2 -and @('rm', 'edit', 'connect') -contains $words[1]) {
+    } elseif ($index -eq 2 -and @(@PROFILE_SUBCOMMANDS@) -contains $words[1]) {
         $candidates = @(lopi __complete 2>$null)
     } elseif ($index -eq 2 -and $words[1] -eq 'completion') {
         $candidates = @(@SHELLS@)

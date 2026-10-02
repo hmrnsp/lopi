@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Tab completion now offers profile names after `lopi passwd`, as it already did after
+  `rm`, `edit` and `connect`.
+
 ## [0.3.1] - 2026-10-02
 
 ### Changed

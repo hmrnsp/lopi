@@ -205,7 +205,9 @@ folder on the user `PATH`. No admin rights are needed.
 `lopi completion bash|zsh|powershell` prints a small template from `src/completion/`.
 Subcommand names are filled in from the clap definition when printed
 (`completion::script`); profile names come from the hidden `lopi __complete` each time Tab
-is pressed, most recently used first.
+is pressed, most recently used first. They are offered as the first word and after the
+subcommands listed in `completion::PROFILE_SUBCOMMANDS` (those that take an existing
+profile name).
 
 ## Files on disk
 

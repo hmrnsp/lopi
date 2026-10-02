@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** profile names must be typed in full and with the same letter case
+  everywhere (`lopi <name>`, `connect`, `rm`, `edit`, `passwd` and jump hosts). A shortened
+  name or another letter case no longer connects to a profile, so a typo can never reach
+  the wrong server; lopi suggests the right name instead. To avoid typing, run `lopi`
+  without a name and pick from the table, or use Tab completion.
+- A jump host that equals a profile name only in another letter case is used as a host
+  name, with a warning (also reported by `lopi doctor`).
+
 ## [0.3.0] - 2026-10-02
 
 ### Added

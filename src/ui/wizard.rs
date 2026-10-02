@@ -510,7 +510,7 @@ mod tests {
         assert_eq!(args.name.as_deref(), Some("office"));
         assert_eq!(args.port, Some(2200));
         assert_eq!(p.rejected.len(), 5, "{:?}", p.rejected);
-        assert!(p.rejected[0].contains("names are not case-sensitive"));
+        assert!(p.rejected[0].contains("differ only in letter case"));
     }
 
     #[test]

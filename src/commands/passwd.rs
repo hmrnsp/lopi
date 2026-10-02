@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 
 use super::{ask_new_password, password_store, require_terminal};
 use crate::config::{Auth, store};
-use crate::resolve::resolve_exact;
+use crate::resolve::resolve;
 use crate::secrets::{KeyringStore, SecretStore};
 use crate::ssh::args::destination;
 use crate::state;
@@ -14,7 +14,7 @@ use crate::ui::prompt::TerminalPrompter;
 pub fn run(name: Option<String>, remove: bool) -> Result<i32> {
     let config = store::load()?;
     let name = match &name {
-        Some(name) => resolve_exact(&config, name)?.0.to_string(),
+        Some(name) => resolve(&config, name)?.0.to_string(),
         None => {
             require_terminal("lopi passwd <name>")?;
             pick_profile(

@@ -3,19 +3,26 @@ use std::fmt;
 /// Errors from looking up a profile by name.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolveError {
+    /// No profile has exactly this name. Near misses are suggested, never used.
     NotFound {
         query: String,
-        /// Names worth suggesting: prefix matches (when only a full name is accepted)
-        /// or names that look like a typo of `query`.
+        /// Names worth suggesting, of the kind given by `near_miss`.
         suggestions: Vec<String>,
-        /// The command accepts full names only (`rm`, `edit`), not prefixes.
-        full_name_required: bool,
+        near_miss: NearMiss,
     },
-    /// The query matched more than one profile.
-    Ambiguous {
-        query: String,
-        candidates: Vec<String>,
-    },
+}
+
+/// Why the suggestions of a [`ResolveError::NotFound`] were picked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NearMiss {
+    /// Nothing close.
+    None,
+    /// The same name in another letter case.
+    Case,
+    /// Names that start with the query: it was typed short.
+    Prefix,
+    /// Names that look like a typo of the query.
+    Typo,
 }
 
 impl fmt::Display for ResolveError {
@@ -24,27 +31,20 @@ impl fmt::Display for ResolveError {
             Self::NotFound {
                 query,
                 suggestions,
-                full_name_required,
+                near_miss,
             } => {
-                if *full_name_required && !suggestions.is_empty() {
-                    write!(
-                        f,
-                        "no profile named exactly '{query}'; this command needs the full name"
-                    )?;
-                } else {
-                    write!(f, "no profile named '{query}'")?;
-                }
+                write!(f, "no profile named '{query}'")?;
+                let lead = match near_miss {
+                    NearMiss::Case => "; names are case-sensitive: did you mean",
+                    NearMiss::Prefix => "; type the full name: did you mean",
+                    NearMiss::Typo | NearMiss::None => "; did you mean",
+                };
                 match suggestions.as_slice() {
                     [] => write!(f, " (see `lopi list`)"),
-                    [one] => write!(f, "; did you mean '{one}'?"),
-                    many => write!(f, "; did you mean one of: {}?", many.join(", ")),
+                    [one] => write!(f, "{lead} '{one}'?"),
+                    many => write!(f, "{lead} one of: {}?", many.join(", ")),
                 }
             }
-            Self::Ambiguous { query, candidates } => write!(
-                f,
-                "'{query}' matches several profiles: {}; type more of the name",
-                candidates.join(", ")
-            ),
         }
     }
 }

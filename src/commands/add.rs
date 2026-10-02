@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 
 use super::{
     ask_new_password, non_empty, non_empty_list, password_store, require_terminal, save_password,
-    stored_key, warn_about_jump_keys,
+    stored_key, warn_about_jump,
 };
 use crate::cli::AddArgs;
 use crate::config::model::{split_target, validate_name};
@@ -76,7 +76,7 @@ fn save(plan: AddPlan) -> Result<i32> {
         let id = config.profiles.get(&name).and_then(|p| p.id.as_deref());
         save_password(secrets, &name, id, password);
     }
-    warn_about_jump_keys(&config, &name);
+    warn_about_jump(&config, &name);
     Ok(0)
 }
 

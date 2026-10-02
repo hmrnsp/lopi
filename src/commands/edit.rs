@@ -2,12 +2,12 @@ use anyhow::{Result, bail};
 
 use super::{
     ask_new_password, forget_password, non_empty, non_empty_list, password_store, require_terminal,
-    save_password, stored_key, warn_about_jump_keys,
+    save_password, stored_key, warn_about_jump,
 };
 use crate::cli::{AuthArg, EditArgs};
 use crate::config::model::validate_name;
 use crate::config::store;
-use crate::resolve::resolve_exact;
+use crate::resolve::resolve;
 use crate::ssh::args::destination;
 use crate::state;
 use crate::ui::picker::pick_profile;
@@ -20,7 +20,7 @@ pub fn run(mut args: EditArgs) -> Result<i32> {
     let config = store::load()?;
     // A wrong name is reported before anything about terminals.
     let name = match &args.name {
-        Some(name) => resolve_exact(&config, name)?.0,
+        Some(name) => resolve(&config, name)?.0,
         None => {
             require_terminal("lopi edit <name> [--host ...] [--port ...]")?;
             pick_profile(&config, &state::load(), &mut TerminalPrompter, "Edit")?
@@ -81,7 +81,7 @@ fn save(plan: EditPlan) -> Result<i32> {
     let secrets = password.as_ref().map(|_| password_store()).transpose()?;
 
     let ((old_name, new_name, used_password), config) = store::mutate_saved(|config| {
-        let old_name = resolve_exact(config, &name)?.0.to_string();
+        let old_name = resolve(config, &name)?.0.to_string();
         let new_name = rename.unwrap_or_else(|| old_name.clone());
         if new_name != old_name {
             config.check_unique(&new_name, Some(&old_name))?;
@@ -129,6 +129,6 @@ fn save(plan: EditPlan) -> Result<i32> {
     if used_password && !saved.uses_password() {
         forget_password(&new_name, id);
     }
-    warn_about_jump_keys(&config, &new_name);
+    warn_about_jump(&config, &new_name);
     Ok(0)
 }

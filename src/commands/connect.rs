@@ -8,11 +8,11 @@ use crate::config::{Config, Profile, store};
 use crate::resolve::resolve;
 use crate::secrets::{KeyringStore, SecretStore};
 use crate::ssh::args::{add_option, build_args, destination};
-use crate::ssh::jump::resolve_jump;
+use crate::ssh::jump::{case_mismatch_warning, jump_case_mismatches, resolve_jump};
 use crate::ssh::{self};
 use crate::{state, time};
 
-/// `lopi <name|prefix> [ssh options...] [-- remote command]` and `lopi connect ...`.
+/// `lopi <name> [ssh options...] [-- remote command]` and `lopi connect ...`.
 pub fn run(query: &OsStr, extra: &[OsString]) -> Result<i32> {
     let config = store::load()?;
     let query = query
@@ -32,6 +32,11 @@ pub fn connect(config: &Config, name: &str, extra: &[OsString]) -> Result<i32> {
     profile
         .validate()
         .with_context(|| format!("profile '{name}' is invalid; fix it with `lopi edit {name}`"))?;
+    if let Some(jump) = &profile.jump {
+        for (item, other) in jump_case_mismatches(config, jump) {
+            eprintln!("lopi: warning: {}", case_mismatch_warning(item, other));
+        }
+    }
     profile.jump = profile.jump.map(|jump| resolve_jump(config, &jump));
     let mut args = build_args(&profile, extra, dirs::home_dir().as_deref());
     let env = if profile.uses_password() {

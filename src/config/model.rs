@@ -143,7 +143,7 @@ impl Config {
     }
 
     /// Pairs of names that differ only in letter case (possible in hand-edited files).
-    /// Lookups treat them as ambiguous.
+    /// Each is reachable by its exact name, but they are easy to confuse, so lopi warns.
     pub fn case_duplicates(&self) -> Vec<(&str, &str)> {
         let names: Vec<&str> = self.profiles.keys().map(String::as_str).collect();
         let mut pairs = Vec::new();
@@ -157,8 +157,9 @@ impl Config {
         pairs
     }
 
-    /// Names are not case-sensitive, so a new name must not equal another profile's name
-    /// ignoring case. `except` is the profile being renamed (it may change its own case).
+    /// Names are case-sensitive, but two names that differ only in letter case are too easy
+    /// to confuse, so a new name must not equal another profile's name ignoring case.
+    /// `except` is the profile being renamed (it may change its own case).
     pub fn check_unique(&self, name: &str, except: Option<&str>) -> Result<()> {
         let clash = self.profiles.keys().find(|existing| {
             Some(existing.as_str()) != except && existing.eq_ignore_ascii_case(name)
@@ -168,7 +169,7 @@ impl Config {
                 bail!("profile '{name}' already exists; change it with `lopi edit {name} ...`")
             }
             Some(existing) => bail!(
-                "profile '{existing}' already exists (names are not case-sensitive); choose another name"
+                "profile '{existing}' already exists; names that differ only in letter case are not allowed"
             ),
             None => Ok(()),
         }
@@ -469,7 +470,7 @@ mod tests {
         assert!(err.contains("already exists; change it"), "{err}");
         let err = cfg.check_unique("KANTOR", None).unwrap_err().to_string();
         assert!(
-            err.contains("'kantor' already exists (names are not"),
+            err.contains("'kantor' already exists; names that differ only in letter case"),
             "{err}"
         );
         // renaming a profile to a different case of its own name is fine

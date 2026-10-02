@@ -127,11 +127,11 @@ fn no_args_prints_help() {
 }
 
 #[test]
-fn connect_by_prefix_passes_options_and_remote_command() {
+fn connect_passes_options_and_remote_command() {
     let env = Env::new();
     env.write_config(TWO_PROFILES);
     assert_eq!(
-        env.ok(&["kanto", "-L", "8080:localhost:80", "--", "uptime"]),
+        env.ok(&["kantor", "-L", "8080:localhost:80", "--", "uptime"]),
         [
             "-L",
             "8080:localhost:80",
@@ -176,16 +176,22 @@ fn reserved_name_reachable_via_connect() {
 }
 
 #[test]
-fn ambiguous_or_unknown_prefix_fails() {
+fn prefixes_never_connect() {
     let env = Env::new();
     env.write_config(TWO_PROFILES);
-    let err = env.fail(&["kan"]);
-    assert!(
-        err.contains("matches several profiles: kantin, kantor"),
-        "{err}"
-    );
-    let err = env.fail(&["db"]);
-    assert!(err.contains("no profile named 'db'"), "{err}");
+    for (query, expected) in [
+        (
+            "kan",
+            "type the full name: did you mean one of: kantin, kantor?",
+        ),
+        ("kanto", "type the full name: did you mean 'kantor'?"),
+        ("db", "no profile named 'db' (see `lopi list`)"),
+    ] {
+        let out = env.cmd().arg(query).assert().failure().get_output().clone();
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(err.contains(expected), "{query}: {err}");
+        assert!(out.stdout.is_empty(), "{query}: ssh must not run");
+    }
 }
 
 #[test]
@@ -270,7 +276,7 @@ fn add_list_connect() {
             "vpsku   root@103.1.2.3:2222  ~/.ssh/id_vps  key",
         ]
     );
-    let args = env.ok(&["vps"]);
+    let args = env.ok(&["vpsku"]);
     assert_eq!(&args[..3], ["-p", "2222", "-i"]);
     assert!(args[3].ends_with("id_vps") && !args[3].starts_with('~'));
     assert_eq!(&args[4..], ["--", "root@103.1.2.3"]);
@@ -310,7 +316,7 @@ fn rm_needs_exact_name_and_confirmation() {
 
     let err = env.fail(&["rm", "kan"]);
     assert!(
-        err.contains("needs the full name; did you mean 'kantor'?"),
+        err.contains("type the full name: did you mean 'kantor'?"),
         "{err}"
     );
 
@@ -391,23 +397,62 @@ fn edit_rename_and_errors() {
 }
 
 #[test]
-fn names_are_not_case_sensitive() {
+fn names_are_case_sensitive() {
     let env = Env::new();
-    env.ok(&["add", "kantor", "h"]);
-    assert_eq!(env.ok(&["KANTOR"]), ["--", "h"]);
-    assert_eq!(env.ok(&["Kan"]), ["--", "h"]);
+    env.ok(&["add", "kantor", "h", "-p", "22"]);
+    let saved = fs::read_to_string(&env.config).unwrap();
+
+    let out = env
+        .cmd()
+        .arg("KANTOR")
+        .assert()
+        .failure()
+        .get_output()
+        .clone();
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("names are case-sensitive: did you mean 'kantor'?"),
+        "{err}"
+    );
+    assert!(out.stdout.is_empty(), "ssh must not run");
+    for args in [
+        &["Kantor", "--", "uptime"][..],
+        &["connect", "KANTOR"][..],
+        &["rm", "KANTOR", "-y"][..],
+        &["edit", "Kantor", "-p", "2222"][..],
+        &["passwd", "KANTOR", "--remove"][..],
+    ] {
+        let out = env
+            .cmd()
+            .args(args)
+            .env("LOPI_KEYRING_SERVICE", "lopi-test-never-written")
+            .assert()
+            .failure()
+            .get_output()
+            .clone();
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(err.contains("did you mean 'kantor'?"), "{args:?}: {err}");
+        assert!(out.stdout.is_empty(), "{args:?}: ssh must not run");
+    }
+    assert_eq!(
+        fs::read_to_string(&env.config).unwrap(),
+        saved,
+        "nothing changed"
+    );
 
     let err = env.fail(&["add", "Kantor", "h2"]);
-    assert!(err.contains("names are not case-sensitive"), "{err}");
+    assert!(err.contains("differ only in letter case"), "{err}");
     let err = env.fail(&["add", "LIST", "h"]);
     assert!(err.contains("reserved"), "{err}");
 
-    // a case-only rename of the same profile is allowed
+    // a case-only rename of the same profile is allowed; the old spelling is then gone
     assert_eq!(
-        env.ok(&["edit", "KANTOR", "--rename", "Kantor"]),
+        env.ok(&["edit", "kantor", "--rename", "Kantor"]),
         ["updated 'kantor', now named 'Kantor'"]
     );
-    assert_eq!(env.ok(&["rm", "kantor", "-y"]), ["removed 'Kantor'"]);
+    assert_eq!(env.ok(&["Kantor"]), ["-p", "22", "--", "h"]);
+    env.fail(&["kantor"]);
+    assert_eq!(env.ok(&["rm", "Kantor", "-y"]), ["removed 'Kantor'"]);
 }
 
 #[test]
@@ -629,6 +674,41 @@ fn jump_through_a_profile_with_a_key_explains_once() {
     // not repeated on every connection
     let out = env.cmd().arg("app").assert().success().get_output().clone();
     assert!(String::from_utf8_lossy(&out.stderr).is_empty());
+}
+
+#[test]
+fn jump_in_another_case_warns_and_is_a_host() {
+    let env = Env::new();
+    let warning = "'BASTION' is not a profile (did you mean 'bastion'?); using it as a host name";
+    env.ok(&["add", "bastion", "admin@b.example", "-p", "2200"]);
+
+    let out = env
+        .cmd()
+        .args(["add", "app", "10.0.0.9", "-J", "BASTION"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    assert!(String::from_utf8_lossy(&out.stderr).contains(warning));
+
+    // every connection warns again, and BASTION goes to ssh as a host name
+    let out = env.cmd().arg("app").assert().success().get_output().clone();
+    assert_eq!(lines(&out.stdout), ["-J", "BASTION", "--", "10.0.0.9"]);
+    assert!(String::from_utf8_lossy(&out.stderr).contains(warning));
+
+    let ssh = fake_ssh_with_version(&env);
+    let out = env
+        .cmd()
+        .arg("doctor")
+        .env("LOPI_SSH_BIN", &ssh)
+        .output()
+        .unwrap();
+    let report = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        report.contains("profile 'app' jumps through 'BASTION', which is not a profile"),
+        "{report}"
+    );
+    assert!(report.contains("lopi edit app --jump bastion"), "{report}");
 }
 
 #[test]

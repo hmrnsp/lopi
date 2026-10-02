@@ -23,7 +23,7 @@ use crate::config::Config;
 use crate::config::key_path::normalize_key;
 use crate::secrets::{KeyringStore, SecretStore};
 use crate::ssh::args::expand_tilde;
-use crate::ssh::jump::jump_profiles_with_keys;
+use crate::ssh::jump::{case_mismatch_warning, jump_case_mismatches, jump_profiles_with_keys};
 use crate::ui::prompt::TerminalPrompter;
 use crate::ui::tty;
 use crate::ui::wizard::ask_password;
@@ -119,12 +119,16 @@ fn non_empty_list(values: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-/// ssh applies `-i` to the destination only, so a jump profile's key goes unused.
-/// Said once, when the jump is saved, rather than on every connection.
-fn warn_about_jump_keys(config: &Config, name: &str) {
+/// Warnings about a saved jump: a name in another letter case than a profile (used as a
+/// host name; also repeated on every connection), and jump profiles whose key ssh will not
+/// use (`-i` applies to the destination only; said once, here).
+fn warn_about_jump(config: &Config, name: &str) {
     let Some(jump) = config.profiles.get(name).and_then(|p| p.jump.as_deref()) else {
         return;
     };
+    for (item, other) in jump_case_mismatches(config, jump) {
+        eprintln!("lopi: warning: {}", case_mismatch_warning(item, other));
+    }
     for jump_profile in jump_profiles_with_keys(config, jump) {
         eprintln!(
             "lopi: note: ssh does not use the key of '{jump_profile}' for the jump; \

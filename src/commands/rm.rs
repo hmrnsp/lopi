@@ -3,7 +3,7 @@ use anyhow::Result;
 use super::{forget_password, require_terminal};
 use crate::config::store;
 use crate::error::Abort;
-use crate::resolve::resolve_exact;
+use crate::resolve::resolve;
 use crate::state;
 use crate::ui;
 use crate::ui::picker::pick_profile;
@@ -15,7 +15,7 @@ pub fn run(name: Option<String>, yes: bool) -> Result<i32> {
     let config = store::load()?;
     // A wrong name is reported before anything about terminals.
     let (name, profile) = match &name {
-        Some(name) => resolve_exact(&config, name)?,
+        Some(name) => resolve(&config, name)?,
         None => {
             require_terminal("lopi rm <name> [-y]")?;
             let name = pick_profile(&config, &state::load(), &mut TerminalPrompter, "Remove")?;
@@ -31,7 +31,7 @@ pub fn run(name: Option<String>, yes: bool) -> Result<i32> {
     }
     let removed = store::mutate(|config| {
         // Exact name again: the file may have changed since it was loaded above.
-        resolve_exact(config, name)?;
+        resolve(config, name)?;
         Ok(config.profiles.remove(name))
     })?;
     println!("removed '{name}'");

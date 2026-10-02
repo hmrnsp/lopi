@@ -8,7 +8,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     name = "lopi",
     version,
     about = "Open SSH connections from saved profiles with one short command",
-    after_help = "Connect:\n  lopi <profile> [ssh options...] [-- remote command]\n  A unique prefix of the profile name also works, e.g. `lopi kan` for `kantor`."
+    after_help = "Connect:\n  lopi <profile> [ssh options...] [-- remote command]\n  Type the profile name in full, with the same letter case (see `lopi list`)."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -108,7 +108,7 @@ pub enum Command {
 
     /// Connect to a profile (use when the name clashes with a subcommand)
     Connect {
-        /// Profile name or unique prefix, then extra ssh options, then `--` and a remote command.
+        /// Exact profile name, then extra ssh options, then `--` and a remote command.
         /// One argument on purpose: as a separate positional, clap would swallow a `--` that
         /// directly follows the name.
         #[arg(

@@ -11,6 +11,7 @@ use anyhow::Result;
 use crate::config::{Config, paths, store};
 use crate::install;
 use crate::secrets::{KeyringStore, SecretStore};
+use crate::ssh::jump::jump_case_mismatches;
 use crate::ssh::{self, args::expand_tilde};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -123,6 +124,7 @@ fn check_profiles(checks: &mut Vec<Check>) -> Option<Config> {
                     format!("rename one: `lopi edit {a} --rename <new>`"),
                 ));
             }
+            check_jump_names(&config, checks);
             Some(config)
         }
         Err(err) => {
@@ -166,6 +168,38 @@ fn check_ssh(config: Option<&Config>, checks: &mut Vec<Check>) -> Option<(u32, u
                 "make sure it is OpenSSH",
             ));
             None
+        }
+    }
+}
+
+/// A jump item in another letter case than a profile is used as a host name.
+fn check_jump_names(config: &Config, checks: &mut Vec<Check>) {
+    for (name, profile) in &config.profiles {
+        let Some(jump) = &profile.jump else { continue };
+        let mismatches = jump_case_mismatches(config, jump);
+        if mismatches.is_empty() {
+            continue;
+        }
+        let fixed: Vec<&str> = jump
+            .split(',')
+            .map(|item| {
+                mismatches
+                    .iter()
+                    .find(|(wrong, _)| *wrong == item)
+                    .map_or(item, |(_, profile)| *profile)
+            })
+            .collect();
+        for (item, other) in &mismatches {
+            checks.push(Check::warn(
+                format!(
+                    "profile '{name}' jumps through '{item}', which is not a profile \
+                     (did you mean '{other}'?)"
+                ),
+                format!(
+                    "if you meant the profile: `lopi edit {name} --jump {}`",
+                    fixed.join(",")
+                ),
+            ));
         }
     }
 }

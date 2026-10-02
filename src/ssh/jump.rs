@@ -2,16 +2,41 @@
 //! for `ssh -J`. Translation is one level deep: a jump profile's own `jump` is not followed.
 
 use crate::config::{Config, Profile};
-use crate::resolve::resolve_exact;
+use crate::resolve::resolve;
 use crate::ssh::args::destination;
 
 /// The profile an item refers to, if it is a bare name (no `@` or `:`) of an existing
-/// profile (any letter case). Such names win over a host of the same name.
+/// profile, in the same letter case. Such names win over a host of the same name.
 fn profile_for<'a>(config: &'a Config, item: &str) -> Option<(&'a str, &'a Profile)> {
-    if item.contains(['@', ':']) {
+    if !is_bare_name(item) {
         return None;
     }
-    resolve_exact(config, item).ok()
+    resolve(config, item).ok()
+}
+
+fn is_bare_name(item: &str) -> bool {
+    !item.contains(['@', ':'])
+}
+
+/// Bare items that are not a profile but equal one when letter case is ignored, as
+/// (item, profile name). They are used as host names, which is probably not what was
+/// meant, so callers warn.
+pub fn jump_case_mismatches<'j, 'c>(config: &'c Config, jump: &'j str) -> Vec<(&'j str, &'c str)> {
+    jump.split(',')
+        .filter(|item| is_bare_name(item) && !config.profiles.contains_key(*item))
+        .filter_map(|item| {
+            config
+                .profiles
+                .keys()
+                .find(|name| name.eq_ignore_ascii_case(item))
+                .map(|name| (item, name.as_str()))
+        })
+        .collect()
+}
+
+/// The warning for one [`jump_case_mismatches`] entry.
+pub fn case_mismatch_warning(item: &str, profile: &str) -> String {
+    format!("'{item}' is not a profile (did you mean '{profile}'?); using it as a host name")
 }
 
 /// `jump` with profile names replaced by their address, ready for `ssh -J`.
@@ -64,7 +89,8 @@ mod tests {
         let cfg = config();
         let cases = [
             ("bastion", "admin@b.example:2200"),
-            ("BASTION", "admin@b.example:2200"),
+            // another letter case is not the profile: it stays a host name
+            ("BASTION", "BASTION"),
             ("gw,bastion", "gw.example,admin@b.example:2200"),
             ("10.0.0.1", "10.0.0.1"),
             ("root@bastion", "root@bastion"),
@@ -74,6 +100,30 @@ mod tests {
         for (jump, expected) in cases {
             assert_eq!(resolve_jump(&cfg, jump), expected, "{jump}");
         }
+    }
+
+    #[test]
+    fn finds_names_in_another_letter_case() {
+        let cfg = config();
+        assert_eq!(
+            jump_case_mismatches(&cfg, "gw,BASTION"),
+            [("BASTION", "bastion")]
+        );
+        assert_eq!(jump_case_mismatches(&cfg, "Gw"), [("Gw", "gw")]);
+        for jump in [
+            "bastion",
+            "gw,bastion",
+            "root@BASTION",
+            "BASTION:22",
+            "bast",
+            "",
+        ] {
+            assert!(jump_case_mismatches(&cfg, jump).is_empty(), "{jump}");
+        }
+        assert_eq!(
+            case_mismatch_warning("Bastion", "bastion"),
+            "'Bastion' is not a profile (did you mean 'bastion'?); using it as a host name"
+        );
     }
 
     #[test]

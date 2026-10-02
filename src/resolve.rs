@@ -1,72 +1,52 @@
-//! Profile lookup. Names are not case-sensitive: an exact match (same case) always wins,
-//! then an exact match ignoring case, then (for connecting only) a unique prefix.
+//! Profile lookup. A name must be typed in full and in the same letter case, so a short or
+//! mistyped name can never reach the wrong server. Near misses (another letter case, a
+//! prefix, a typo) are suggested, never used.
 
 use crate::config::{Config, Profile};
-use crate::error::ResolveError;
+use crate::error::{NearMiss, ResolveError};
 
 pub type Found<'a> = (&'a str, &'a Profile);
 
-/// For connecting: exact name, or a prefix that matches exactly one profile.
+/// The profile called exactly `query`, for every command that takes a profile name.
 pub fn resolve<'a>(config: &'a Config, query: &str) -> Result<Found<'a>, ResolveError> {
-    if let Some(found) = exact(config, query)? {
-        return Ok(found);
+    if let Some((name, profile)) = config.profiles.get_key_value(query) {
+        return Ok((name, profile));
     }
-    let mut matches = prefix_matches(config, query);
-    match matches.len() {
-        1 => Ok(matches.remove(0)),
-        0 => Err(ResolveError::NotFound {
-            query: query.into(),
-            suggestions: typo_suggestions(config, query),
-            full_name_required: false,
-        }),
-        _ => Err(ambiguous(query, &matches)),
-    }
-}
-
-/// For destructive commands (`rm`, `edit`): only the full name (in any case) is accepted.
-pub fn resolve_exact<'a>(config: &'a Config, query: &str) -> Result<Found<'a>, ResolveError> {
-    if let Some(found) = exact(config, query)? {
-        return Ok(found);
-    }
-    let prefixes = names(&prefix_matches(config, query));
-    let suggestions = if prefixes.is_empty() {
-        typo_suggestions(config, query)
-    } else {
-        prefixes
-    };
+    let (near_miss, suggestions) = near_misses(config, query);
     Err(ResolveError::NotFound {
         query: query.into(),
         suggestions,
-        full_name_required: true,
+        near_miss,
     })
 }
 
-fn exact<'a>(config: &'a Config, query: &str) -> Result<Option<Found<'a>>, ResolveError> {
-    if let Some((name, profile)) = config.profiles.get_key_value(query) {
-        return Ok(Some((name, profile)));
-    }
-    let mut matches = matching(config, |name| name.eq_ignore_ascii_case(query));
-    match matches.len() {
-        0 => Ok(None),
-        1 => Ok(Some(matches.remove(0))),
-        // Only possible in a hand-edited file (`add` rejects such names).
-        _ => Err(ambiguous(query, &matches)),
-    }
-}
-
-fn prefix_matches<'a>(config: &'a Config, query: &str) -> Vec<Found<'a>> {
+/// What to suggest for a name that is not a profile, closest kind first: the same name in
+/// another letter case, then names it is a prefix of, then likely typos.
+fn near_misses(config: &Config, query: &str) -> (NearMiss, Vec<String>) {
     if query.is_empty() {
-        return Vec::new();
+        return (NearMiss::None, Vec::new());
     }
-    matching(config, |name| starts_with_ignore_case(name, query))
+    let case = matching(config, |name| name.eq_ignore_ascii_case(query));
+    if !case.is_empty() {
+        return (NearMiss::Case, case);
+    }
+    let prefixes = matching(config, |name| starts_with_ignore_case(name, query));
+    if !prefixes.is_empty() {
+        return (NearMiss::Prefix, prefixes);
+    }
+    let typos = typo_suggestions(config, query);
+    if !typos.is_empty() {
+        return (NearMiss::Typo, typos);
+    }
+    (NearMiss::None, Vec::new())
 }
 
-fn matching<'a>(config: &'a Config, accept: impl Fn(&str) -> bool) -> Vec<Found<'a>> {
+fn matching(config: &Config, accept: impl Fn(&str) -> bool) -> Vec<String> {
     config
         .profiles
-        .iter()
-        .filter(|(name, _)| accept(name))
-        .map(|(name, profile)| (name.as_str(), profile))
+        .keys()
+        .filter(|name| accept(name))
+        .cloned()
         .collect()
 }
 
@@ -80,9 +60,6 @@ fn starts_with_ignore_case(name: &str, prefix: &str) -> bool {
 /// it is at most one edit away per three characters (at least one): `kantro` → `kantor`,
 /// `vsp` → `vps`. Transpositions count as one edit.
 fn typo_suggestions(config: &Config, query: &str) -> Vec<String> {
-    if query.is_empty() {
-        return Vec::new();
-    }
     let query = query.to_ascii_lowercase();
     let allowed = (query.chars().count() / 3).max(1);
     let mut scored: Vec<(usize, &str)> = config
@@ -102,17 +79,6 @@ fn typo_suggestions(config: &Config, query: &str) -> Vec<String> {
         .collect()
 }
 
-fn ambiguous(query: &str, matches: &[Found<'_>]) -> ResolveError {
-    ResolveError::Ambiguous {
-        query: query.into(),
-        candidates: names(matches),
-    }
-}
-
-fn names(found: &[Found<'_>]) -> Vec<String> {
-    found.iter().map(|(name, _)| name.to_string()).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,113 +93,81 @@ mod tests {
         config
     }
 
-    fn list(names: &[&str]) -> Vec<String> {
-        names.iter().map(|s| s.to_string()).collect()
-    }
-
-    fn not_found(query: &str, suggestions: &[&str], full: bool) -> ResolveError {
+    fn not_found(query: &str, near_miss: NearMiss, suggestions: &[&str]) -> ResolveError {
         ResolveError::NotFound {
             query: query.into(),
-            suggestions: list(suggestions),
-            full_name_required: full,
+            suggestions: suggestions.iter().map(|s| s.to_string()).collect(),
+            near_miss,
         }
     }
 
     #[test]
-    fn resolve_cases() {
+    fn only_the_exact_name_resolves() {
         let cfg = config(&["kantor", "kantin", "vps", "vps2", "Web"]);
         let found = |q: &str| resolve(&cfg, q).map(|(name, _)| name.to_string());
 
-        let cases: &[(&str, Result<&str, ResolveError>)] = &[
-            ("kantor", Ok("kantor")),
-            ("kanto", Ok("kantor")),
-            ("kanti", Ok("kantin")),
-            // exact match wins even though "vps" is also a prefix of "vps2"
-            ("vps", Ok("vps")),
-            ("vps2", Ok("vps2")),
-            // case-insensitive exact and prefix
-            ("KANTOR", Ok("kantor")),
-            ("Kanto", Ok("kantor")),
-            ("web", Ok("Web")),
-            ("VPS", Ok("vps")),
-            (
-                "kan",
-                Err(ResolveError::Ambiguous {
-                    query: "kan".into(),
-                    candidates: list(&["kantin", "kantor"]),
-                }),
-            ),
-            ("db", Err(not_found("db", &[], false))),
-            ("", Err(not_found("", &[], false))),
+        for name in ["kantor", "kantin", "vps", "vps2", "Web"] {
+            assert_eq!(found(name), Ok(name.to_string()), "query: {name:?}");
+        }
+        let misses: &[(&str, NearMiss, &[&str])] = &[
+            ("KANTOR", NearMiss::Case, &["kantor"]),
+            ("web", NearMiss::Case, &["Web"]),
+            ("VPS", NearMiss::Case, &["vps"]),
+            ("kanto", NearMiss::Prefix, &["kantor"]),
+            ("Kan", NearMiss::Prefix, &["kantin", "kantor"]),
+            ("kantro", NearMiss::Typo, &["kantor", "kantin"]),
+            ("vsp", NearMiss::Typo, &["vps"]),
+            ("db", NearMiss::None, &[]),
+            ("", NearMiss::None, &[]),
         ];
-        for (query, expected) in cases {
-            let expected = expected.clone().map(str::to_string);
-            assert_eq!(found(query), expected, "query: {query:?}");
+        for (query, near_miss, suggestions) in misses {
+            assert_eq!(
+                found(query),
+                Err(not_found(query, *near_miss, suggestions)),
+                "query: {query:?}"
+            );
         }
     }
 
     #[test]
-    fn typos_get_suggestions() {
-        let cfg = config(&["kantor", "kantin", "vps"]);
-        assert_eq!(
-            resolve(&cfg, "kantro"),
-            Err(not_found("kantro", &["kantor", "kantin"], false))
-        );
-        assert_eq!(resolve(&cfg, "vsp"), Err(not_found("vsp", &["vps"], false)));
-        assert_eq!(resolve(&cfg, "zzz"), Err(not_found("zzz", &[], false)));
-    }
-
-    #[test]
-    fn resolve_exact_rejects_prefix() {
-        let cfg = config(&["kantor", "kantin"]);
-        assert_eq!(resolve_exact(&cfg, "kantor").unwrap().0, "kantor");
-        assert_eq!(resolve_exact(&cfg, "KANTOR").unwrap().0, "kantor");
-        assert_eq!(
-            resolve_exact(&cfg, "kanto"),
-            Err(not_found("kanto", &["kantor"], true))
-        );
-        assert_eq!(
-            resolve_exact(&cfg, "kantro"),
-            Err(not_found("kantro", &["kantor", "kantin"], true))
-        );
-    }
-
-    #[test]
-    fn hand_edited_case_duplicates_are_ambiguous() {
+    fn hand_edited_case_duplicates_are_both_reachable() {
         let cfg = config(&["Kantor", "kantor"]);
-        // exact case still works
         assert_eq!(resolve(&cfg, "kantor").unwrap().0, "kantor");
-        assert_eq!(resolve_exact(&cfg, "Kantor").unwrap().0, "Kantor");
-        assert!(matches!(
+        assert_eq!(resolve(&cfg, "Kantor").unwrap().0, "Kantor");
+        assert_eq!(
             resolve(&cfg, "KANTOR"),
-            Err(ResolveError::Ambiguous { .. })
-        ));
-        assert!(matches!(
-            resolve_exact(&cfg, "KANTOR"),
-            Err(ResolveError::Ambiguous { .. })
-        ));
+            Err(not_found("KANTOR", NearMiss::Case, &["Kantor", "kantor"]))
+        );
     }
 
     #[test]
     fn messages() {
-        assert_eq!(
-            not_found("db", &[], false).to_string(),
-            "no profile named 'db' (see `lopi list`)"
-        );
-        assert_eq!(
-            not_found("kantro", &["kantor"], false).to_string(),
-            "no profile named 'kantro'; did you mean 'kantor'?"
-        );
-        assert_eq!(
-            not_found("kan", &["kantor", "kantin"], true).to_string(),
-            "no profile named exactly 'kan'; this command needs the full name; did you mean one of: kantor, kantin?"
-        );
+        let cases = [
+            (
+                not_found("db", NearMiss::None, &[]),
+                "no profile named 'db' (see `lopi list`)",
+            ),
+            (
+                not_found("KANTOR", NearMiss::Case, &["kantor"]),
+                "no profile named 'KANTOR'; names are case-sensitive: did you mean 'kantor'?",
+            ),
+            (
+                not_found("kan", NearMiss::Prefix, &["kantin", "kantor"]),
+                "no profile named 'kan'; type the full name: did you mean one of: kantin, kantor?",
+            ),
+            (
+                not_found("kantro", NearMiss::Typo, &["kantor"]),
+                "no profile named 'kantro'; did you mean 'kantor'?",
+            ),
+        ];
+        for (err, expected) in cases {
+            assert_eq!(err.to_string(), expected);
+        }
     }
 
     #[test]
     fn empty_config() {
         let cfg = config(&[]);
-        assert!(resolve(&cfg, "x").is_err());
-        assert!(resolve_exact(&cfg, "x").is_err());
+        assert_eq!(resolve(&cfg, "x"), Err(not_found("x", NearMiss::None, &[])));
     }
 }

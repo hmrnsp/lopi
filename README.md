@@ -158,8 +158,11 @@ choose *More info › Run anyway*, or run `Unblock-File .\lopi.exe` first.
 With [Rust](https://rustup.rs) 1.89 or newer, on any system:
 
 ```sh
-cargo install --git https://github.com/hmrnsp/lopi --locked   # the command is lopi
+cargo install lopi-ssh --locked   # the crate is lopi-ssh; the command is lopi
 ```
+
+To build the latest development version instead:
+`cargo install --git https://github.com/hmrnsp/lopi --locked`.
 
 This needs a C linker: Visual Studio Build Tools on Windows, the Xcode Command Line
 Tools on macOS (`xcode-select --install`), or `gcc`/`cc` on Linux.

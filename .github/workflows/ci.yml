@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - name: Completion scripts parse
+        if: runner.os == 'Linux'
+        run: |
+          cargo run -q -- completion bash > lopi.bash && bash -n lopi.bash
+          sudo apt-get update -qq && sudo apt-get install -y -qq zsh > /dev/null
+          cargo run -q -- completion zsh > lopi.zsh && zsh -n lopi.zsh
+      - name: Completion script parses (PowerShell)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $script = cargo run -q -- completion powershell | Out-String
+          [ScriptBlock]::Create($script) | Out-Null

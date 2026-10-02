@@ -1,0 +1,3 @@
+# Completion templates are embedded into the binary; bash and zsh reject CRLF.
+src/completion/*.bash text eol=lf
+src/completion/*.zsh  text eol=lf

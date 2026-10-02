@@ -1,0 +1,5 @@
+# Link the C runtime into the exe, so it runs on PCs without the Visual C++
+# Redistributable (no "VCRUNTIME140.dll was not found"). Release builds made by
+# cargo-dist already do this (msvc-crt-static); this makes local builds match.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

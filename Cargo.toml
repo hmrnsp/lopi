@@ -1,0 +1,50 @@
+[package]
+name = "lopi-ssh"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.89"
+description = "Open SSH connections from saved profiles with one short command, in any shell on Windows and Linux"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/hmrnsp/lopi"
+homepage = "https://github.com/hmrnsp/lopi"
+readme = "README.md"
+keywords = ["ssh", "cli", "launcher", "profiles", "terminal"]
+categories = ["command-line-utilities", "network-programming"]
+include = ["src/**/*", "tests/**/*", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE-*"]
+
+[lib]
+name = "lopi"
+
+[[bin]]
+name = "lopi"
+path = "src/main.rs"
+
+[dependencies]
+age = { version = "0.12.1", default-features = false }
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+dirs = "7.0.0"
+fastrand = "2.5.0"
+inquire = "0.9.4"
+keyring = "4.2.0"
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm_0_29", "layout-cache"] }
+rpassword = "7.5.4"
+self-replace = "1.5.0"
+serde = { version = "1.0.229", features = ["derive"] }
+strsim = "0.11.1"
+tar = { version = "0.4.46", default-features = false }
+tempfile = "3.27.0"
+toml = "1.1.6"
+toml_edit = "0.25.15"
+zeroize = "1.9.0"
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

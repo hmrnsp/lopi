@@ -20,7 +20,7 @@ src/
   config/            model.rs (schema + validation), store.rs (load, write),
                      document.rs (minimal edits with toml_edit), meta.rs (id, updated_at),
                      backup.rs (snapshots), key_path.rs, paths.rs
-  resolve.rs         name lookup: exact → ignoring case → prefix; typo suggestions
+  resolve.rs         name lookup: exact name only; suggestions for near misses
   ssh/               args.rs (build_args, pure), jump.rs, launch_unix.rs (exec),
                      launch_windows.rs (child process)
   ui/                prompt.rs (Prompter trait, Scripted for tests), picker.rs, wizard.rs,
@@ -50,12 +50,13 @@ src/
    `Vec<OsString>`: with a separate positional name, clap would swallow a `--` right after
    it.
 3. `commands::connect::run` loads the profiles (`store::load`) and finds the profile with
-   `resolve::resolve`: exact name, then the same name ignoring case, then a unique prefix
-   ignoring case. Nothing found gives typo suggestions (Damerau–Levenshtein via `strsim`);
-   an ambiguous prefix lists the candidates.
+   `resolve::resolve`: the exact name, in the same letter case. Anything else fails with
+   suggestions: the name in another letter case, names that start with it, or likely typos
+   (Damerau–Levenshtein via `strsim`). Nothing near is ever used.
 4. `commands::connect::connect` validates the profile and replaces a `jump` that names
-   another profile with that profile's address (`ssh::jump::resolve_jump`, one level, not
-   recursive).
+   another profile exactly with that profile's address (`ssh::jump::resolve_jump`, one
+   level, not recursive). An item that matches a profile only in another letter case stays
+   a host name, with a warning (`ssh::jump::jump_case_mismatches`).
 5. `ssh::args::build_args(&Profile, extra, home)` builds the arguments: the user's extra
    options first (ssh keeps the first value of `-p` and `-o`, so they override the
    profile), then `-p`, `-i`, `-J`, `-L`/`-R`/`-D`, `--`, `user@host`, and the remote

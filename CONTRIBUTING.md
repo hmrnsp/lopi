@@ -117,8 +117,9 @@ These hold everywhere; a change that breaks one needs a very good reason.
    `EditPlan`). The store is checked before the user is asked to type a password.
 5. **Never build a command string.** Pass arguments one by one with `Command::arg()`, as
    `OsString`/`PathBuf` rather than `String`, so Windows paths stay intact.
-6. **Destructive commands take exact names only.** `rm` and `edit` accept a full profile
-   name (any letter case), never a prefix. Prefixes are only for connecting.
+6. **Profile names are matched exactly.** Every command (connect, `rm`, `edit`, `passwd`,
+   jump hosts) takes the full name in the same letter case. Near misses are suggested,
+   never used, so a typo can never reach the wrong server.
 
 ## Edge cases to keep in mind
 
@@ -126,10 +127,12 @@ These hold everywhere; a change that breaks one needs a very good reason.
   `RESERVED_NAMES` (`src/config/model.rs`). Add every new subcommand there. Such names are
   rejected by `add`, cause a warning on load, and can still be reached with
   `lopi connect <name>`.
-- **Name matching.** Exact match first, then a match ignoring letter case, then a unique
-  prefix ignoring case (prefixes only when connecting). An ambiguous prefix lists the
-  candidates and fails. Names that differ only in case are rejected
-  (`Config::check_unique`).
+- **Name matching.** `resolve::resolve` accepts the exact name only. When it is not
+  found, the error suggests, in this order, the same name in another letter case, names
+  that start with what was typed, or likely typos. Names that differ only in letter case
+  are rejected by `add` and `--rename` (`Config::check_unique`). A jump item in another
+  letter case than a profile is used as a host name, with a warning
+  (`ssh::jump::jump_case_mismatches`).
 - **Option injection.** Host, user and profile name must not start with `-`, and lopi
   always puts `--` before the destination. clap already rejects such values, but the
   checks in `config/model.rs` stay: values can arrive through `-- -x`, `--host=-x` or a

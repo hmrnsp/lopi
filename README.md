@@ -27,8 +27,10 @@ arguments, so your keys, agent, `known_hosts` and `~/.ssh/config` keep working.
 
 ## Features
 
-- **Short commands**: `lopi office`, or just `lopi off`; a unique prefix is enough, in
-  any letter case.
+- **One short command**: `lopi office` instead of
+  `ssh -p 2222 -i ~/.ssh/id_office admin@10.0.0.5`.
+- **No guessing**: lopi connects only to a profile whose name you typed exactly, so a
+  typo never reaches the wrong server.
 - **Pick from a table**: run `lopi` alone, type to filter, press Enter to connect.
 - **Guided setup**: `lopi add` asks for anything you leave out.
 - **Saved passwords** for servers without keys, kept in the system credential store
@@ -79,9 +81,10 @@ lopi office
 lopi runs `ssh -p 2222 -i ~/.ssh/id_office -- admin@10.0.0.5` for you, so you never
 have to remember the address, port or key again.
 
-You do not have to type the whole name: any start of it that matches only one profile
-works, in any letter case. `lopi off` and `lopi OFF` also connect to `office`. Run
-`lopi` with no name to choose from the table shown above.
+Type the name exactly as you saved it: letter case matters, and lopi never guesses.
+`lopi off` or `lopi Office` will not connect; lopi suggests `office` instead. To connect
+without typing the name, run `lopi` alone and pick from the table shown above, or press
+Tab (see [Shell completion](#shell-completion)).
 
 ## Install
 
@@ -217,11 +220,17 @@ added 'office' (admin@10.0.0.5); connect with `lopi office`
 
 or run `lopi add` alone and answer the questions (name, address, port, how to log in).
 
-**2. Connect.** Use the name, or any unique start of it, in any letter case:
+**2. Connect.** Type the profile name exactly as you saved it (letter case matters):
 
 ```sh
 lopi office
-lopi off
+```
+
+A name that is not a profile never connects. lopi tells you the closest names instead:
+
+```console
+$ lopi Office
+lopi: error: no profile named 'Office'; names are case-sensitive: did you mean 'office'?
 ```
 
 **3. Pick from a table.** Run `lopi` with no arguments to get the table shown at the top
@@ -254,7 +263,7 @@ lopi office -- uptime                # run a remote command
 | Command | What it does |
 | --- | --- |
 | `lopi` | Choose a profile from a table (most recent first, type to filter) and connect |
-| `lopi <name>` | Connect; a unique prefix works, letter case does not matter |
+| `lopi <name>` | Connect to the profile with exactly this name |
 | `lopi <name> -L 8080:localhost:80` | Extra `ssh` options for this connection |
 | `lopi <name> -- uptime` | Run a remote command (everything after `--`) |
 | `lopi list [--recent]` | Show profiles, optionally most recently used first |
@@ -275,7 +284,8 @@ Options for `add` and `edit`: `-p/--port`, `-i/--key`, `-J/--jump`, `-f/--forwar
 `-u/--user`, `--rename` and `--auth key|password|agent`.
 With `edit`, an empty value (`--note ""`) removes the field.
 
-`rm` and `edit` only accept a full profile name (in any case), never a prefix.
+Profile names are case-sensitive and always typed in full, in every command. When a
+name is not found, lopi suggests the closest ones and does nothing else.
 
 Without a name, `lopi`, `rm`, `edit` and `passwd` open a full-screen table of your
 profiles. Type to filter (any column, any case), move with ↑↓, PgUp/PgDn, Home/End,
@@ -295,8 +305,10 @@ lopi add db 10.0.0.9 --jump bastion -f L:5432:localhost:5432
 lopi db                 # ssh -J admin@bastion.example.com -L 5432:localhost:5432 -- 10.0.0.9
 ```
 
-A `--jump` item that names a profile is replaced by that profile's address. Its key is
-not passed on (`ssh` applies `-i` to the destination only); load it with `ssh-add`.
+A `--jump` item that is exactly a profile name is replaced by that profile's address.
+Anything else is passed to ssh as a host name; lopi warns when it differs from a profile
+name only in letter case (`Bastion` vs `bastion`). The jump profile's key is not passed
+on (`ssh` applies `-i` to the destination only); load it with `ssh-add`.
 
 ## Passwords
 

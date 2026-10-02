@@ -11,7 +11,8 @@ pub const DATA_DIR_ENV: &str = "LOPI_DATA_DIR";
 
 const APP: &str = "lopi";
 
-/// `~/.config/lopi/profiles.toml` on Linux, `%APPDATA%\lopi\profiles.toml` on Windows.
+/// `~/.config/lopi/profiles.toml` on Linux, `~/Library/Application Support/lopi/profiles.toml`
+/// on macOS, `%APPDATA%\lopi\profiles.toml` on Windows.
 pub fn config_file() -> Result<PathBuf> {
     if let Some(path) = env_path(CONFIG_ENV) {
         return Ok(path);
@@ -21,7 +22,7 @@ pub fn config_file() -> Result<PathBuf> {
 }
 
 /// Data that should follow the user (backups): `~/.local/share/lopi` on Linux,
-/// `%APPDATA%\lopi` on Windows.
+/// `~/Library/Application Support/lopi` on macOS, `%APPDATA%\lopi` on Windows.
 pub fn data_dir() -> Result<PathBuf> {
     if let Some(path) = env_path(DATA_DIR_ENV) {
         return Ok(path);
@@ -31,7 +32,7 @@ pub fn data_dir() -> Result<PathBuf> {
 }
 
 /// Machine-local data (connection history): `~/.local/share/lopi` on Linux,
-/// `%LOCALAPPDATA%\lopi` on Windows.
+/// `~/Library/Application Support/lopi` on macOS, `%LOCALAPPDATA%\lopi` on Windows.
 pub fn state_dir() -> Result<PathBuf> {
     if let Some(path) = env_path(DATA_DIR_ENV) {
         return Ok(path);

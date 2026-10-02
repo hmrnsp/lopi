@@ -53,8 +53,8 @@ cargo clippy --all-targets -- -D warnings
 Every pull request must pass:
 
 - `cargo fmt --check`
-- `cargo clippy --all-targets --locked -- -D warnings`, on Linux and Windows
-- `cargo test --locked`, on Linux and Windows
+- `cargo clippy --all-targets --locked -- -D warnings`, on Linux, macOS and Windows
+- `cargo test --locked`, on Linux, macOS and Windows
 - `cargo check --locked` with Rust 1.89 (the MSRV)
 - the bash, zsh and PowerShell completion scripts parse (`bash -n`, `zsh -n`, PowerShell's parser)
 
@@ -84,8 +84,8 @@ Rules for tests:
 
 - **Credential store.** Regular tests only read from a `lopi-test-…` service and never
   write, so they pass on CI machines without a credential store (Linux CI has no Secret
-  Service). Tests that use the real store are `#[ignore]` and clean up after themselves.
-  Run them by hand on a desktop session:
+  Service; the macOS and Windows runners have one). Tests that use the real store are
+  `#[ignore]` and clean up after themselves. Run them by hand on a desktop session:
 
   ```sh
   cargo test real_keyring -- --ignored
@@ -105,7 +105,7 @@ Rules for tests:
 
 These hold everywhere; a change that breaks one needs a very good reason.
 
-1. **One binary, no runtime**, on Windows and Linux.
+1. **One binary, no runtime**, on Windows, macOS and Linux.
 2. **No SSH implementation of our own.** lopi always runs the system's `ssh`.
 3. **One write path for the profiles file.** All writes go through `config/store.rs`:
    `mutate_in` (field changes) or `replace_in` (whole file, used by `restore`). Both end in
@@ -160,8 +160,8 @@ These hold everywhere; a change that breaks one needs a very good reason.
 1. In `CHANGELOG.md`, move the `Unreleased` entries under a new `## [X.Y.Z] - YYYY-MM-DD`
    heading and update the links at the bottom.
 2. Bump `version` in `Cargo.toml` and run `cargo build` to update `Cargo.lock`.
-3. Commit, then push a `vX.Y.Z` tag. The release workflow (cargo-dist) builds the Windows
-   and Linux archives and installers and creates the GitHub release.
+3. Commit, then push a `vX.Y.Z` tag. The release workflow (cargo-dist) builds the Windows,
+   macOS and Linux archives and installers and creates the GitHub release.
 4. `cargo publish` (the crate is `lopi-ssh`).
 
 The release workflow is generated. To change it, edit `dist-workspace.toml` (or

@@ -24,10 +24,10 @@ you prefer not to be named.
 ## What lopi promises
 
 - **Passwords stay in the credential store.** Saved passwords are stored only in the OS
-  credential store (Windows Credential Manager, the Secret Service on Linux) and inside
-  backup files you encrypt with a passphrase. They are never written to the profiles
-  file, never passed as command-line arguments or environment variables, and never
-  logged.
+  credential store (Windows Credential Manager, the macOS Keychain, the Secret Service on
+  Linux) and inside backup files you encrypt with a passphrase. They are never written to
+  the profiles file, never passed as command-line arguments or environment variables, and
+  never logged.
 - **A password goes only to its own server.** When ssh asks lopi for a password
   (askpass), lopi answers only a password prompt for the profile's own `user@host`. Other
   prompts (a jump host's password, host key confirmation, key passphrases, one-time codes)

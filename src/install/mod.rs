@@ -22,7 +22,8 @@ use crate::atomic;
 pub const INSTALL_DIR_ENV: &str = "LOPI_INSTALL_DIR";
 
 /// Windows: `%LOCALAPPDATA%\Programs\lopi` (a folder of our own).
-/// Linux: `~/.local/bin` (shared with other programs, usually already on `PATH`).
+/// Linux and macOS: `~/.local/bin` (shared with other programs; usually on `PATH` on Linux,
+/// not by default on macOS, where `executable_dir()` is `None`).
 pub fn install_dir() -> Result<PathBuf> {
     if let Some(dir) = env::var_os(INSTALL_DIR_ENV).filter(|dir| !dir.is_empty()) {
         return Ok(PathBuf::from(dir));
@@ -148,8 +149,8 @@ pub fn remove_exe(target: &Path) -> Result<()> {
         fs::remove_file(target)
     }
     .with_context(|| format!("cannot delete {}", target.display()))?;
-    // Windows: the folder is lopi's own; remove it once empty. Never on Linux, where
-    // ~/.local/bin is shared.
+    // Windows: the folder is lopi's own; remove it once empty. Never on Linux or macOS,
+    // where ~/.local/bin is shared.
     if cfg!(windows)
         && let Some(dir) = target.parent()
     {

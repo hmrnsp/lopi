@@ -148,8 +148,9 @@ that replays a list of answers.
 ## Passwords and askpass
 
 A profile with `auth = "password"` gets its password from the OS credential store
-(`secrets::KeyringStore`: Windows Credential Manager, the Secret Service on Linux), under
-the service `lopi` and the profile's `id`, so renaming a profile keeps its password.
+(`secrets::KeyringStore`: Windows Credential Manager, the macOS Keychain, the Secret
+Service on Linux), under the service `lopi` and the profile's `id`, so renaming a profile
+keeps its password.
 
 When connecting, lopi sets `SSH_ASKPASS` to its own executable,
 `SSH_ASKPASS_REQUIRE=force`, `LOPI_ASKPASS_ID=<id>` and `LOPI_ASKPASS_TARGET=<user@host>`,
@@ -186,7 +187,8 @@ restoring an old snapshot and then going back loses nothing.
 `lopi install` copies the running exe to a per-user folder and, on Windows, puts that
 folder on the user `PATH`. No admin rights are needed.
 
-- Windows folder: `%LOCALAPPDATA%\Programs\lopi`. Linux: `~/.local/bin`.
+- Windows folder: `%LOCALAPPDATA%\Programs\lopi`. Linux and macOS: `~/.local/bin`
+  (`dirs::executable_dir()`, which is `None` on macOS, falling back to `~/.local/bin`).
 - The user `PATH` is read and written raw in `HKCU\Environment\Path` (`RRF_NOEXPAND`,
   keeping `REG_EXPAND_SZ`). `env::var("PATH")` is never used for this: it is the system
   and user values combined and already expanded.
@@ -206,14 +208,14 @@ is pressed, most recently used first.
 
 ## Files on disk
 
-| What | Linux | Windows | Override |
-| --- | --- | --- | --- |
-| Profiles | `~/.config/lopi/profiles.toml` | `%APPDATA%\lopi\profiles.toml` | `LOPI_CONFIG` |
-| Write lock | `profiles.toml.lock`, next to the profiles file | same | follows the profiles file |
-| Snapshots | `~/.local/share/lopi/backups/` | `%APPDATA%\lopi\backups\` | `LOPI_DATA_DIR` |
-| History | `~/.local/share/lopi/state.toml` | `%LOCALAPPDATA%\lopi\state.toml` | `LOPI_DATA_DIR` |
-| Passwords | Secret Service, service `lopi` | Credential Manager, service `lopi` | `LOPI_KEYRING_SERVICE` |
-| Installed exe | `~/.local/bin/lopi` | `%LOCALAPPDATA%\Programs\lopi\lopi.exe` | `LOPI_INSTALL_DIR` |
+| What | Linux | macOS | Windows | Override |
+| --- | --- | --- | --- | --- |
+| Profiles | `~/.config/lopi/profiles.toml` | `~/Library/Application Support/lopi/profiles.toml` | `%APPDATA%\lopi\profiles.toml` | `LOPI_CONFIG` |
+| Write lock | `profiles.toml.lock`, next to the profiles file | same | same | follows the profiles file |
+| Snapshots | `~/.local/share/lopi/backups/` | `~/Library/Application Support/lopi/backups/` | `%APPDATA%\lopi\backups\` | `LOPI_DATA_DIR` |
+| History | `~/.local/share/lopi/state.toml` | `~/Library/Application Support/lopi/state.toml` | `%LOCALAPPDATA%\lopi\state.toml` | `LOPI_DATA_DIR` |
+| Passwords | Secret Service, service `lopi` | Keychain, service `lopi` | Credential Manager, service `lopi` | `LOPI_KEYRING_SERVICE` |
+| Installed exe | `~/.local/bin/lopi` | `~/.local/bin/lopi` | `%LOCALAPPDATA%\Programs\lopi\lopi.exe` | `LOPI_INSTALL_DIR` |
 
 ## Testing strategy
 

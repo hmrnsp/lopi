@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS support: prebuilt binaries for Apple Silicon and Intel Macs, also picked up by
+  the shell installer. Saved passwords are kept in the macOS Keychain.
+
 ## [0.2.1] - 2026-10-02
 
 ### Fixed

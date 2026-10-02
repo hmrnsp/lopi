@@ -41,6 +41,7 @@ body:
       options:
         - Windows 11
         - Windows 10
+        - macOS
         - Linux
         - Other
     validations:

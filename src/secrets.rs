@@ -1,6 +1,6 @@
 //! Saved passwords live only in the operating system's credential store (Windows
-//! Credential Manager, the Secret Service on Linux), keyed by profile id so a rename keeps
-//! them. There is deliberately no file-based store: passwords are never written as
+//! Credential Manager, the macOS Keychain, the Secret Service on Linux), keyed by profile
+//! id so a rename keeps them. There is deliberately no file-based store: passwords are never written as
 //! plaintext anywhere.
 
 use anyhow::{Result, anyhow};

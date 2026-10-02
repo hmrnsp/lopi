@@ -42,7 +42,8 @@ fn add_to_path(dir: &Path) -> Result<bool> {
     Ok(added)
 }
 
-/// Linux: `~/.local/bin` is normally on PATH already; shell startup files are not edited.
+/// Linux and macOS: shell startup files are not edited; when `~/.local/bin` is not on PATH
+/// (the macOS default), the line to add is printed.
 #[cfg(not(windows))]
 fn add_to_path(dir: &Path) -> Result<bool> {
     let on_path =

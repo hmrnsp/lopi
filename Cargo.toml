@@ -10,7 +10,7 @@ homepage = "https://github.com/hmrnsp/lopi"
 readme = "README.md"
 keywords = ["ssh", "cli", "launcher", "profiles", "terminal"]
 categories = ["command-line-utilities", "network-programming"]
-include = ["src/**/*", "tests/**/*", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE-*"]
+include = ["src/**/*", "tests/**/*", "Cargo.toml", "Cargo.lock", "README.md", "CHANGELOG.md", "LICENSE-*"]
 
 [lib]
 name = "lopi"

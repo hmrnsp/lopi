@@ -1,3 +1,8 @@
+//! The implementation of the `lopi` command-line program.
+//!
+//! This library exists for the `lopi` binary and its tests. It has no stable API: anything
+//! in it may change in any release, so do not depend on it from other crates.
+
 pub mod app;
 pub mod askpass;
 pub mod atomic;

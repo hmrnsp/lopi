@@ -1,5 +1,7 @@
 # lopi
 
+[![CI](https://github.com/hmrnsp/lopi/actions/workflows/ci.yml/badge.svg)](https://github.com/hmrnsp/lopi/actions/workflows/ci.yml)
+
 Open SSH connections from saved profiles with one short command — in bash, zsh,
 PowerShell, cmd and Git Bash, on Windows and Linux. One small binary, no runtime.
 
@@ -214,6 +216,16 @@ OpenSSH; set `ssh_bin` in the profiles file to pick one.
 `0` success · `1` error, a question was cancelled, or `doctor` found a problem · `2` usage error ·
 `130` interrupted with Ctrl+C · otherwise the exit code of `ssh` (`255` means the
 connection failed).
+
+## Contributing
+
+Bug reports and pull requests are welcome. See:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md): setup, tests and the rules the code follows
+- [ARCHITECTURE.md](ARCHITECTURE.md): how the code is organized
+- [SECURITY.md](SECURITY.md): how to report a vulnerability privately
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 

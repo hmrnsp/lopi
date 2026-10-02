@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Password and passphrase prompts (`add`, `edit`, `passwd`, `backup`, `restore`) now
+  place the cursor after the prompt instead of at the start of the line, and show
+  each typed character as `*`.
+
 ## [0.2.0] - 2026-10-02
 
 First public release.

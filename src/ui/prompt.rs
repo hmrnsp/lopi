@@ -122,8 +122,9 @@ impl Prompter for TerminalPrompter {
                 Validation::Valid
             })
         };
+        // Masked, not Hidden: inquire's Hidden mode leaves the cursor at the start of the line.
         let mut prompt = Password::new(message)
-            .with_display_mode(PasswordDisplayMode::Hidden)
+            .with_display_mode(PasswordDisplayMode::Masked)
             .with_validator(not_empty);
         prompt = if confirm {
             prompt.with_custom_confirmation_message("Type it again:")

@@ -146,7 +146,7 @@ pub struct AddArgs {
     /// Free-form note
     #[arg(short, long)]
     pub note: Option<String>,
-    /// Log in with a password: you are asked for it (hidden), and it is saved in the
+    /// Log in with a password: you are asked for it (masked), and it is saved in the
     /// system credential store, never in the profiles file
     #[arg(long)]
     pub password: bool,

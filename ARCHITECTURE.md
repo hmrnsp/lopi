@@ -118,7 +118,8 @@ that would need to ask fails with a message naming the flag to use (`require_ter
 
 All questions go through the `ui::prompt::Prompter` trait. `TerminalPrompter` uses:
 
-- **inquire** for selections, text, confirmations and hidden password input
+- **inquire** for selections, text, confirmations and masked password input (`*` per
+  character)
 - **ratatui** for `pick_row`, the full-screen profile table (`ui::table_picker`), shown by
   `lopi` without arguments and by `rm`, `edit` and `passwd` without a name. Typing
   filters every column; there is no `q` to quit because letters filter.

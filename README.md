@@ -41,15 +41,47 @@ arguments, so your keys, agent, `known_hosts` and `~/.ssh/config` keep working.
 
 ## Quick start
 
-```console
-$ lopi add office admin@10.0.0.5 -p 2222 -i ~/.ssh/id_office    # 1. save a profile
-added 'office' (admin@10.0.0.5); connect with `lopi office`
+**1. Install lopi.** On Linux or macOS:
 
-$ lopi off                                                       # 2. connect
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/hmrnsp/lopi/releases/latest/download/lopi-ssh-installer.sh | sh
 ```
 
-Install lopi first (next section). Run `lopi add` without arguments to be asked
-step by step.
+On Windows, in PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/hmrnsp/lopi/releases/latest/download/lopi-ssh-installer.ps1 | iex"
+```
+
+Then open a new terminal. Other ways to install are under [Install](#install).
+
+**2. Save a server as a profile.** Run `lopi add` and answer the questions, or give
+everything on one line:
+
+```console
+$ lopi add office admin@10.0.0.5 -p 2222 -i ~/.ssh/id_office
+added 'office' (admin@10.0.0.5); connect with `lopi office`
+```
+
+| Part | Meaning |
+| --- | --- |
+| `office` | A name you choose for this server |
+| `admin@10.0.0.5` | The user to log in as, and the server's address |
+| `-p 2222` | The SSH port (optional; without it, ssh uses port 22) |
+| `-i ~/.ssh/id_office` | The private key to log in with (optional) |
+
+**3. Connect.**
+
+```sh
+lopi office
+```
+
+lopi runs `ssh -p 2222 -i ~/.ssh/id_office -- admin@10.0.0.5` for you, so you never
+have to remember the address, port or key again.
+
+You do not have to type the whole name: any start of it that matches only one profile
+works, in any letter case. `lopi off` and `lopi OFF` also connect to `office`. Run
+`lopi` with no name to choose from the table shown above.
 
 ## Install
 

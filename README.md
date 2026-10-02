@@ -1,4 +1,4 @@
-# lopi
+# Lopi
 
 [![CI](https://github.com/hmrnsp/lopi/actions/workflows/ci.yml/badge.svg)](https://github.com/hmrnsp/lopi/actions/workflows/ci.yml)
 
@@ -65,12 +65,12 @@ $ lopi add office admin@10.0.0.5 -p 2222 -i ~/.ssh/id_office
 added 'office' (admin@10.0.0.5); connect with `lopi office`
 ```
 
-| Part | Meaning |
-| --- | --- |
-| `office` | A name you choose for this server |
-| `admin@10.0.0.5` | The user to log in as, and the server's address |
-| `-p 2222` | The SSH port (optional; without it, ssh uses port 22) |
-| `-i ~/.ssh/id_office` | The private key to log in with (optional) |
+| Part                  | Meaning                                               |
+| --------------------- | ----------------------------------------------------- |
+| `office`              | A name you choose for this server                     |
+| `admin@10.0.0.5`      | The user to log in as, and the server's address       |
+| `-p 2222`             | The SSH port (optional; without it, ssh uses port 22) |
+| `-i ~/.ssh/id_office` | The private key to log in with (optional)             |
 
 **3. Connect.**
 
@@ -92,21 +92,21 @@ Tab (see [Shell completion](#shell-completion)).
 
 lopi needs the OpenSSH client (`ssh`). Check with `ssh -V`; if it is missing:
 
-| System | How to get `ssh` |
-| --- | --- |
-| Windows 10/11 | *Settings › System › Optional features › OpenSSH Client*, or in an admin PowerShell: `Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0` |
-| macOS | Already installed |
-| Debian, Ubuntu | `sudo apt install openssh-client` |
-| Fedora | `sudo dnf install openssh-clients` |
-| Arch | `sudo pacman -S openssh` |
+| System         | How to get `ssh`                                                                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows 10/11  | _Settings › System › Optional features › OpenSSH Client_, or in an admin PowerShell: `Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0` |
+| macOS          | Already installed                                                                                                                                    |
+| Debian, Ubuntu | `sudo apt install openssh-client`                                                                                                                    |
+| Fedora         | `sudo dnf install openssh-clients`                                                                                                                   |
+| Arch           | `sudo pacman -S openssh`                                                                                                                             |
 
 Prebuilt binaries are available for:
 
-| System | Architecture |
-| --- | --- |
-| Windows 10/11 | x86_64 |
-| macOS | Apple Silicon (arm64) and Intel (x86_64) |
-| Linux | x86_64 (static binary, works on any distribution) |
+| System        | Architecture                                      |
+| ------------- | ------------------------------------------------- |
+| Windows 10/11 | x86_64                                            |
+| macOS         | Apple Silicon (arm64) and Intel (x86_64)          |
+| Linux         | x86_64 (static binary, works on any distribution) |
 
 On other systems, [build from source](#from-source).
 
@@ -174,7 +174,7 @@ your user `PATH`. Open a new terminal afterwards.
 `lopi-ssh-x86_64-pc-windows-msvc.zip` from the
 [latest release](https://github.com/hmrnsp/lopi/releases/latest) and extract it. To
 install it for your user (no admin rights), either double-click `lopi.exe` and answer
-*yes*, or run:
+_yes_, or run:
 
 ```powershell
 .\lopi.exe install            # asks whether to enable PowerShell Tab completion
@@ -186,7 +186,7 @@ This copies it to `%LOCALAPPDATA%\Programs\lopi` and adds that folder to your us
 Running `install` again updates the installed copy, even while it is in use.
 
 Windows may warn about a downloaded, unsigned program ("Windows protected your PC"):
-choose *More info › Run anyway*, or run `Unblock-File .\lopi.exe` first.
+choose _More info › Run anyway_, or run `Unblock-File .\lopi.exe` first.
 
 ### From source
 
@@ -240,14 +240,14 @@ of this page: most recently used first, type to filter, Enter to connect.
 
 ```console
 $ lopi list
-NAME     TARGET                     KEY               AUTH   NOTE
-bastion  admin@bastion.example.com                    agent
-office   admin@10.0.0.5:2222        ~/.ssh/id_office  key
+NAME    TARGET                  KEY               AUTH   NOTE
+office  admin@10.0.0.5:2222     ~/.ssh/id_office  key
+zayd    admin@zayd.example.com                    agent
 
 $ lopi edit office -p 22 -n "third floor"
 updated 'office'
 
-$ lopi rm bastion
+$ lopi rm zayd
 ```
 
 **5. Pass extra options or run a command.** Anything after the name goes to `ssh`;
@@ -260,24 +260,24 @@ lopi office -- uptime                # run a remote command
 
 ## Command reference
 
-| Command | What it does |
-| --- | --- |
-| `lopi` | Choose a profile from a table (most recent first, type to filter) and connect |
-| `lopi <name>` | Connect to the profile with exactly this name |
-| `lopi <name> -L 8080:localhost:80` | Extra `ssh` options for this connection |
-| `lopi <name> -- uptime` | Run a remote command (everything after `--`) |
-| `lopi list [--recent]` | Show profiles, optionally most recently used first |
-| `lopi add [name] [[user@]host] [options]` | Add a profile; asks for anything missing |
-| `lopi edit [name] [options]` | Change given fields; without options, a guided edit |
-| `lopi rm [name] [-y]` | Remove a profile after confirmation |
-| `lopi connect <name>` | Connect to a profile whose name clashes with a command |
-| `lopi path` | Print the location of the profiles file |
-| `lopi completion <shell>` | Print a completion script (bash, zsh, powershell) |
-| `lopi install` / `uninstall` | Install this binary for your user and put it on `PATH`, or remove it |
-| `lopi passwd [name] [--remove]` | Save, change or delete a profile's password |
-| `lopi backup [file]` | Profiles, passwords and key files in one encrypted file |
-| `lopi restore [file]` | Bring a backup back; without a file, choose an automatic snapshot |
-| `lopi doctor` | Check ssh, the profiles file, key files and saved passwords |
+| Command                                   | What it does                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------------- |
+| `lopi`                                    | Choose a profile from a table (most recent first, type to filter) and connect |
+| `lopi <name>`                             | Connect to the profile with exactly this name                                 |
+| `lopi <name> -L 8080:localhost:80`        | Extra `ssh` options for this connection                                       |
+| `lopi <name> -- uptime`                   | Run a remote command (everything after `--`)                                  |
+| `lopi list [--recent]`                    | Show profiles, optionally most recently used first                            |
+| `lopi add [name] [[user@]host] [options]` | Add a profile; asks for anything missing                                      |
+| `lopi edit [name] [options]`              | Change given fields; without options, a guided edit                           |
+| `lopi rm [name] [-y]`                     | Remove a profile after confirmation                                           |
+| `lopi connect <name>`                     | Connect to a profile whose name clashes with a command                        |
+| `lopi path`                               | Print the location of the profiles file                                       |
+| `lopi completion <shell>`                 | Print a completion script (bash, zsh, powershell)                             |
+| `lopi install` / `uninstall`              | Install this binary for your user and put it on `PATH`, or remove it          |
+| `lopi passwd [name] [--remove]`           | Save, change or delete a profile's password                                   |
+| `lopi backup [file]`                      | Profiles, passwords and key files in one encrypted file                       |
+| `lopi restore [file]`                     | Bring a backup back; without a file, choose an automatic snapshot             |
+| `lopi doctor`                             | Check ssh, the profiles file, key files and saved passwords                   |
 
 Options for `add` and `edit`: `-p/--port`, `-i/--key`, `-J/--jump`, `-f/--forward`
 (repeatable), `-n/--note`; `add` also takes `--password`, and `edit` also `--host`,
@@ -300,14 +300,14 @@ Run `lopi --help` or `lopi <command> --help` for every option.
 ## Jump hosts and port forwards
 
 ```sh
-lopi add bastion admin@bastion.example.com
-lopi add db 10.0.0.9 --jump bastion -f L:5432:localhost:5432
-lopi db                 # ssh -J admin@bastion.example.com -L 5432:localhost:5432 -- 10.0.0.9
+lopi add zayd admin@zayd.example.com
+lopi add db 10.0.0.9 --jump zayd -f L:5432:localhost:5432
+lopi db                 # ssh -J admin@zayd.example.com -L 5432:localhost:5432 -- 10.0.0.9
 ```
 
 A `--jump` item that is exactly a profile name is replaced by that profile's address.
 Anything else is passed to ssh as a host name; lopi warns when it differs from a profile
-name only in letter case (`Bastion` vs `bastion`). The jump profile's key is not passed
+name only in letter case (`Zayd` vs `zayd`). The jump profile's key is not passed
 on (`ssh` applies `-i` to the destination only); load it with `ssh-add`.
 
 ## Passwords
@@ -377,11 +377,11 @@ On Windows, `lopi install --completion` sets up PowerShell for you.
 
 ## Where lopi keeps its files
 
-| | Linux | macOS | Windows |
-| --- | --- | --- | --- |
-| Profiles | `~/.config/lopi/profiles.toml` | `~/Library/Application Support/lopi/profiles.toml` | `%APPDATA%\lopi\profiles.toml` |
-| Snapshots (last 10) | `~/.local/share/lopi/backups/` | `~/Library/Application Support/lopi/backups/` | `%APPDATA%\lopi\backups\` |
-| Connection history | `~/.local/share/lopi/state.toml` | `~/Library/Application Support/lopi/state.toml` | `%LOCALAPPDATA%\lopi\state.toml` |
+|                     | Linux                            | macOS                                              | Windows                          |
+| ------------------- | -------------------------------- | -------------------------------------------------- | -------------------------------- |
+| Profiles            | `~/.config/lopi/profiles.toml`   | `~/Library/Application Support/lopi/profiles.toml` | `%APPDATA%\lopi\profiles.toml`   |
+| Snapshots (last 10) | `~/.local/share/lopi/backups/`   | `~/Library/Application Support/lopi/backups/`      | `%APPDATA%\lopi\backups\`        |
+| Connection history  | `~/.local/share/lopi/state.toml` | `~/Library/Application Support/lopi/state.toml`    | `%LOCALAPPDATA%\lopi\state.toml` |
 
 `lopi path` prints where your profiles file is. The macOS path contains a space, so quote
 it in a shell: `open "$(dirname "$(lopi path)")"`.
@@ -399,7 +399,7 @@ host = "10.0.0.5"
 user = "admin"
 port = 2222
 key = "~/.ssh/id_office"     # ~ is expanded by lopi, so the file is portable
-jump = "bastion"
+jump = "zayd"
 forward = ["L:8080:localhost:80"]
 note = "third floor"
 id = "k3v9q2m1xz"            # managed by lopi
@@ -435,10 +435,10 @@ Secret Service, which needs a running keyring such as GNOME Keyring or KWallet. 
 usually missing on servers and minimal installs; use keys there instead.
 
 **macOS says lopi "cannot be opened".** The binary is not signed by Apple. Run
-`xattr -d com.apple.quarantine /path/to/lopi`, or allow it in *System Settings ›
-Privacy & Security*. The install script does not have this problem.
+`xattr -d com.apple.quarantine /path/to/lopi`, or allow it in _System Settings ›
+Privacy & Security_. The install script does not have this problem.
 
-**Windows says "Windows protected your PC".** Choose *More info › Run anyway*, or run
+**Windows says "Windows protected your PC".** Choose _More info › Run anyway_, or run
 `Unblock-File .\lopi.exe` first.
 
 **Git Bash on Windows.** Git Bash's default window (mintty) does not give programs a real
@@ -450,12 +450,12 @@ Windows' OpenSSH; set `ssh_bin` in the profiles file to pick one.
 
 How to remove lopi depends on how you installed it:
 
-| Installed with | Remove with |
-| --- | --- |
-| `lopi install` | `lopi uninstall` (also removes the `PATH` entry and Tab completion setup on Windows) |
-| Install script, Linux or macOS | `rm ~/.cargo/bin/lopi` |
-| Install script, Windows | `Remove-Item "$env:USERPROFILE\.cargo\bin\lopi.exe"` |
-| `cargo install` | `cargo uninstall lopi-ssh` |
+| Installed with                 | Remove with                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| `lopi install`                 | `lopi uninstall` (also removes the `PATH` entry and Tab completion setup on Windows) |
+| Install script, Linux or macOS | `rm ~/.cargo/bin/lopi`                                                               |
+| Install script, Windows        | `Remove-Item "$env:USERPROFILE\.cargo\bin\lopi.exe"`                                 |
+| `cargo install`                | `cargo uninstall lopi-ssh`                                                           |
 
 Your profiles, snapshots and history are kept. To remove them too, delete the folders
 listed in [Where lopi keeps its files](#where-lopi-keeps-its-files). Saved passwords stay

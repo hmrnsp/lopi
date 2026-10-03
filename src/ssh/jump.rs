@@ -3,7 +3,7 @@
 
 use crate::config::{Config, Profile};
 use crate::resolve::resolve;
-use crate::ssh::args::destination;
+use crate::ssh::args::bracket_ipv6;
 
 /// The profile an item refers to, if it is a bare name (no `@` or `:`) of an existing
 /// profile, in the same letter case. Such names win over a host of the same name.
@@ -43,14 +43,36 @@ pub fn case_mismatch_warning(item: &str, profile: &str) -> String {
 pub fn resolve_jump(config: &Config, jump: &str) -> String {
     jump.split(',')
         .map(|item| match profile_for(config, item) {
-            Some((_, profile)) => match profile.port {
-                Some(port) => format!("{}:{port}", destination(profile)),
-                None => destination(profile),
-            },
+            Some((_, profile)) => jump_address(profile),
             None => item.to_string(),
         })
         .collect::<Vec<_>>()
         .join(",")
+}
+
+/// `[user@]host[:port]` for `ssh -J`. An IPv6 host is always bracketed: ssh reads the
+/// first `:` of an unbracketed `-J` item as the start of the port.
+fn jump_address(profile: &Profile) -> String {
+    let mut address = String::new();
+    if let Some(user) = &profile.user {
+        address.push_str(&format!("{user}@"));
+    }
+    address.push_str(&bracket_ipv6(&profile.host));
+    if let Some(port) = profile.port {
+        address.push_str(&format!(":{port}"));
+    }
+    address
+}
+
+/// Unbracketed IPv6 addresses typed as jump items (`2001:db8::1`): ssh would read them as
+/// host and port. Checked on input only, so an old file never blocks a save.
+pub fn unbracketed_ipv6(jump: &str) -> Vec<&str> {
+    jump.split(',')
+        .filter(|item| {
+            let host = item.rsplit_once('@').map_or(*item, |(_, host)| host);
+            !host.starts_with('[') && host.matches(':').count() >= 2
+        })
+        .collect()
 }
 
 /// Other profiles whose `jump` names `name` as a bare item, so they connect through it.
@@ -112,6 +134,17 @@ mod tests {
             .profiles
             .insert("gw".into(), Profile::new("gw.example"));
         config
+            .profiles
+            .insert("v6".into(), Profile::new("2001:db8::1"));
+        config.profiles.insert(
+            "v6port".into(),
+            Profile {
+                user: Some("admin".into()),
+                port: Some(2200),
+                ..Profile::new("2001:db8::1")
+            },
+        );
+        config
     }
 
     #[test]
@@ -126,6 +159,8 @@ mod tests {
             ("root@bastion", "root@bastion"),
             ("bastion:22", "bastion:22"),
             ("bast", "bast"),
+            ("v6,v6port", "[2001:db8::1],admin@[2001:db8::1]:2200"),
+            ("[2001:db8::2]:22", "[2001:db8::2]:22"),
         ];
         for (jump, expected) in cases {
             assert_eq!(resolve_jump(&cfg, jump), expected, "{jump}");
@@ -153,6 +188,14 @@ mod tests {
         assert_eq!(
             case_mismatch_warning("Bastion", "bastion"),
             "'Bastion' is not a profile (did you mean 'bastion'?); using it as a host name"
+        );
+    }
+
+    #[test]
+    fn finds_unbracketed_ipv6_items() {
+        assert_eq!(
+            unbracketed_ipv6("gw,2001:db8::1,root@::1,[::1]:22,root@[::1],h:22"),
+            ["2001:db8::1", "root@::1"]
         );
     }
 

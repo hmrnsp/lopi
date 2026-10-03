@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 
 use super::{
-    ask_new_password, non_empty, non_empty_list, password_store, require_terminal, save_password,
-    stored_key, warn_about_captured_jumps, warn_about_jump,
+    ask_new_password, check_jump_input, non_empty, non_empty_list, password_store,
+    require_terminal, save_password, stored_key, warn_about_captured_jumps, warn_about_jump,
 };
 use crate::cli::AddArgs;
 use crate::config::model::{parse_target, validate_name};
@@ -55,6 +55,9 @@ fn save(plan: AddPlan) -> Result<i32> {
     let name = name.context("internal error: add without a name")?;
     let target = target.context("internal error: add without a target")?;
     validate_name(&name)?;
+    if let Some(jump) = &jump {
+        check_jump_input(jump)?;
+    }
     let target = parse_target(&target)?;
     let profile = Profile {
         user: target.user,

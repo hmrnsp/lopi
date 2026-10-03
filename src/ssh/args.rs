@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -59,6 +60,16 @@ pub fn destination(profile: &Profile) -> String {
     match &profile.user {
         Some(user) => format!("{user}@{}", profile.host),
         None => profile.host.clone(),
+    }
+}
+
+/// `[host]` for an IPv6 address, where a `:port` (or `ssh -J`'s parser) would otherwise
+/// be ambiguous; other hosts unchanged.
+pub fn bracket_ipv6(host: &str) -> Cow<'_, str> {
+    if host.contains(':') {
+        Cow::Owned(format!("[{host}]"))
+    } else {
+        Cow::Borrowed(host)
     }
 }
 

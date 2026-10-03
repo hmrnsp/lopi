@@ -25,6 +25,7 @@ use crate::secrets::{KeyringStore, SecretStore};
 use crate::ssh::args::expand_tilde;
 use crate::ssh::jump::{
     case_mismatch_warning, jump_case_mismatches, jump_dependents, jump_profiles_with_keys,
+    unbracketed_ipv6,
 };
 use crate::ui::prompt::TerminalPrompter;
 use crate::ui::tty;
@@ -106,6 +107,15 @@ fn stored_key(raw: String) -> Result<Option<String>> {
         );
     }
     Ok(Some(stored))
+}
+
+/// A `--jump` value as typed: IPv6 addresses must be bracketed, or ssh reads them as host
+/// and port.
+fn check_jump_input(jump: &str) -> Result<()> {
+    let Some(item) = unbracketed_ipv6(jump).into_iter().next() else {
+        return Ok(());
+    };
+    bail!("jump '{item}': write IPv6 addresses in brackets, e.g. [2001:db8::1] or [2001:db8::1]:22")
 }
 
 /// `""` on the command line means "clear this field".

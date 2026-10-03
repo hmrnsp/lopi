@@ -767,6 +767,30 @@ fn doctor_reports_a_port_inside_the_host() {
 }
 
 #[test]
+fn ipv6_jump_hosts_are_bracketed() {
+    let env = Env::new();
+    env.ok(&["add", "v6", "admin@2001:db8::1", "-p", "2200"]);
+    env.ok(&["add", "inner", "10.0.0.9", "-J", "v6"]);
+    assert_eq!(
+        env.ok(&["inner"]),
+        ["-J", "admin@[2001:db8::1]:2200", "--", "10.0.0.9"]
+    );
+    let list = env.ok(&["list"]);
+    assert!(
+        list.iter()
+            .any(|row| row.starts_with("v6 ") && row.contains("admin@[2001:db8::1]:2200")),
+        "{list:?}"
+    );
+
+    let err = env.fail(&["add", "x", "h", "-J", "2001:db8::1"]);
+    assert!(err.contains("write IPv6 addresses in brackets"), "{err}");
+    let err = env.fail(&["edit", "inner", "--jump", "root@::1"]);
+    assert!(err.contains("jump 'root@::1'"), "{err}");
+    env.ok(&["add", "y", "h", "-J", "root@[2001:db8::2]:22"]);
+    assert_eq!(env.ok(&["y"])[..2], ["-J", "root@[2001:db8::2]:22"]);
+}
+
+#[test]
 fn rename_updates_jump_references() {
     let env = Env::new();
     env.write_config(

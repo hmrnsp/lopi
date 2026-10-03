@@ -55,7 +55,8 @@ src/
    (Damerau–Levenshtein via `strsim`). Nothing near is ever used.
 4. `commands::connect::connect` validates the profile and replaces a `jump` that names
    another profile exactly with that profile's address (`ssh::jump::resolve_jump`, one
-   level, not recursive). An item that matches a profile only in another letter case stays
+   level, not recursive; an IPv6 host is bracketed, `[2001:db8::1]:22`, because ssh reads
+   the first `:` of a `-J` item as the port). An item that matches a profile only in another letter case stays
    a host name, with a warning (`ssh::jump::jump_case_mismatches`).
 5. `ssh::args::build_args(&Profile, extra, home)` builds the arguments: the user's extra
    options first (ssh keeps the first value of `-p` and `-o`, so they override the

@@ -1,8 +1,8 @@
 use anyhow::{Result, bail};
 
 use super::{
-    ask_new_password, forget_password, non_empty, non_empty_list, password_store, require_terminal,
-    save_password, stored_key, warn_about_captured_jumps, warn_about_jump,
+    ask_new_password, check_jump_input, forget_password, non_empty, non_empty_list, password_store,
+    require_terminal, save_password, stored_key, warn_about_captured_jumps, warn_about_jump,
 };
 use crate::cli::{AuthArg, EditArgs};
 use crate::config::model::{parse_host_input, validate_name};
@@ -89,6 +89,9 @@ fn save(plan: EditPlan) -> Result<i32> {
         validate_name(new_name)?;
     }
     let host = host.as_deref().map(parse_host_input).transpose()?;
+    if let Some(jump) = &jump {
+        check_jump_input(jump)?;
+    }
     // Normalized before taking the lock: it may print a warning about a missing file.
     let key = key.map(stored_key).transpose()?;
     let secrets = password.as_ref().map(|_| password_store()).transpose()?;

@@ -309,8 +309,9 @@ lopi db                 # ssh -J admin@zayd.example.com -L 5432:localhost:5432 -
 ```
 
 A `--jump` item that is exactly a profile name is replaced by that profile's address.
-Anything else is passed to ssh as a host name; lopi warns when it differs from a profile
-name only in letter case (`Zayd` vs `zayd`). The jump profile's key is not passed
+Anything else is passed to ssh as it is, as `[user@]host[:port]` (write an IPv6 address in
+brackets: `admin@[2001:db8::1]:22`); lopi warns when it differs from a profile name only in
+letter case (`Zayd` vs `zayd`). The jump profile's key is not passed
 on (`ssh` applies `-i` to the destination only); load it with `ssh-add`.
 
 Renaming a profile also updates the jumps that name it (`lopi edit zayd --rename bastion`

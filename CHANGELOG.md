@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ssh://user@host:port` and `user@[2001:db8::1]:port`; a port that differs from `--port`
   is an error. `lopi edit --host` refuses a value with a port or user and says which
   options to use. `lopi doctor` reports profiles saved this way and how to fix them.
+- A jump host profile with an IPv6 address was passed to `ssh -J` without brackets
+  (`admin@2001:db8::1:2200`), which ssh cannot read. It is now `admin@[2001:db8::1]:2200`,
+  and `list` shows such addresses with a port the same way. An unbracketed IPv6 address
+  typed with `--jump` is refused with an example.
 - Adding a profile, or renaming one, to a name that other profiles use as a jump host name
   now warns that those profiles will jump through the new profile.
 

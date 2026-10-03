@@ -6,7 +6,7 @@ pub mod tty;
 pub mod wizard;
 
 use crate::config::{Config, Profile};
-use crate::ssh::args::destination;
+use crate::ssh::args::{bracket_ipv6, destination};
 use crate::state::State;
 use crate::time;
 
@@ -14,7 +14,11 @@ use crate::time;
 pub fn target(profile: &Profile) -> String {
     let mut target = destination(profile);
     if let Some(port) = profile.port {
-        target.push_str(&format!(":{port}"));
+        // `user@[2001:db8::1]:22`, not the ambiguous `user@2001:db8::1:22`
+        target = match &profile.user {
+            Some(user) => format!("{user}@{}:{port}", bracket_ipv6(&profile.host)),
+            None => format!("{}:{port}", bracket_ipv6(&profile.host)),
+        };
     }
     if let Some(jump) = &profile.jump {
         target.push_str(&format!(" via {jump}"));
@@ -99,6 +103,18 @@ mod tests {
         config.profiles.insert("kantor".into(), kantor);
         config.profiles.insert("vps".into(), vps);
         config
+    }
+
+    #[test]
+    fn ipv6_targets_with_a_port_are_bracketed() {
+        let v6 = |user: Option<&str>, port| Profile {
+            user: user.map(str::to_string),
+            port,
+            ..Profile::new("2001:db8::1")
+        };
+        assert_eq!(target(&v6(Some("root"), Some(22))), "root@[2001:db8::1]:22");
+        assert_eq!(target(&v6(None, Some(22))), "[2001:db8::1]:22");
+        assert_eq!(target(&v6(Some("root"), None)), "root@2001:db8::1");
     }
 
     #[test]

@@ -85,6 +85,9 @@ pub enum Command {
         /// Delete the saved password and stop using password login
         #[arg(long)]
         remove: bool,
+        /// Show the saved password on this terminal until Enter is pressed
+        #[arg(long, conflicts_with = "remove")]
+        show: bool,
     },
 
     /// Install this exe for the current user and put it on PATH (no admin needed)

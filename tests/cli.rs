@@ -1245,6 +1245,34 @@ fn passwd_remove_switches_back_without_touching_other_fields() {
     assert!(text.contains("port = 2222"), "{text}");
 }
 
+#[test]
+fn passwd_show_refuses_pipes_and_changes_nothing() {
+    let env = Env::new();
+    let config = "[profiles.vps]\nhost = \"h\"\nauth = \"password\"\n";
+    env.write_config(config);
+    // Tests run without a terminal, like `lopi passwd vps --show | cat`.
+    let out = env
+        .cmd()
+        .args(["passwd", "vps", "--show"])
+        .env("LOPI_KEYRING_SERVICE", "lopi-test-never-written")
+        .assert()
+        .failure()
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("shown only on a terminal"), "{stderr}");
+    assert!(out.stdout.is_empty());
+    // The same without a name: refused before the picker.
+    let stderr = env.fail(&["passwd", "--show"]);
+    assert!(stderr.contains("shown only on a terminal"), "{stderr}");
+
+    env.cmd()
+        .args(["passwd", "vps", "--show", "--remove"])
+        .assert()
+        .code(2);
+    assert_eq!(fs::read_to_string(&env.config).unwrap(), config);
+}
+
 /// Real credential store, throw-away service name, cleaned up. Run by hand:
 /// `cargo test --test cli askpass_real -- --ignored`
 #[test]

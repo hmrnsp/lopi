@@ -29,7 +29,7 @@ pub fn run() -> Result<i32> {
             yes,
             overwrite_keys,
         } => commands::restore::run(file, yes, overwrite_keys),
-        Command::Passwd { name, remove } => commands::passwd::run(name, remove),
+        Command::Passwd { name, remove, show } => commands::passwd::run(name, remove, show),
         Command::Install {
             completion,
             no_completion,

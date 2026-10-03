@@ -1661,8 +1661,10 @@ fn update_replaces_a_lopi_install_copy() {
     assert!(err.contains("-y to update without confirmation"), "{err}");
 
     let out = stdout_of(env.update_with(&exe, &url, &["-y"]).assert().success());
+    // the path with symlinks resolved (macOS: /var is /private/var)
+    let shown = fs::canonicalize(&exe).unwrap();
     assert!(
-        out.contains(&format!("updated {} to lopi {NEWER}", exe.display())),
+        out.contains(&format!("updated {} to lopi {NEWER}", shown.display())),
         "{out}"
     );
     let version = Command::new(&exe).arg("--version").assert().success();

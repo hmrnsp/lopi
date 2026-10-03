@@ -140,6 +140,11 @@ These hold everywhere; a change that breaks one needs a very good reason.
   same write, and `rm` refuses while any profile jumps through the one being removed
   (`ssh::jump::jump_dependents`). Adding or renaming to a name that other profiles use as a
   jump host name warns, because those jumps now reach the profile.
+- **Targets.** `add` reads `[user@]host[:port]`, `[user@][v6]:port` and
+  `ssh://[user@]host[:port]` with `config::model::parse_target`; a host with two or more `:`
+  and no brackets is an IPv6 address. `edit --host` takes a host only
+  (`parse_host_input`). These checks are for input only: `Profile::validate` stays lenient
+  so an old or hand-edited file never blocks a save, and `doctor` reports such profiles.
 - **Option injection.** Host, user and profile name must not start with `-`, and lopi
   always puts `--` before the destination. clap already rejects such values, but the
   checks in `config/model.rs` stay: values can arrive through `-- -x`, `--host=-x` or a

@@ -712,6 +712,61 @@ fn jump_in_another_case_warns_and_is_a_host() {
 }
 
 #[test]
+fn add_accepts_host_port_and_ssh_uri() {
+    let env = Env::new();
+    env.ok(&["add", "web", "example.com:2222"]);
+    assert_eq!(env.ok(&["web"]), ["-p", "2222", "--", "example.com"]);
+    env.ok(&["add", "u", "ssh://root@h:2200"]);
+    assert_eq!(env.ok(&["u"]), ["-p", "2200", "--", "root@h"]);
+    env.ok(&["add", "v6", "root@[2001:db8::1]:2200"]);
+    assert_eq!(env.ok(&["v6"]), ["-p", "2200", "--", "root@2001:db8::1"]);
+    env.ok(&["add", "v6b", "2001:db8::1"]);
+    assert_eq!(env.ok(&["v6b"]), ["--", "2001:db8::1"]);
+    // the same port twice is fine
+    env.ok(&["add", "same", "h:22", "-p", "22"]);
+
+    let err = env.fail(&["add", "x", "h:22", "-p", "2200"]);
+    assert!(err.contains("port given twice"), "{err}");
+    let err = env.fail(&["add", "x", "h:abc"]);
+    assert!(err.contains("give the port with -p"), "{err}");
+    let err = env.fail(&["edit", "web", "--host", "example.com:22"]);
+    assert!(err.contains("use --host example.com --port 22"), "{err}");
+    env.ok(&["edit", "v6b", "--host", "[2001:db8::2]"]);
+    assert_eq!(env.ok(&["v6b"]), ["--", "2001:db8::2"]);
+}
+
+#[test]
+fn doctor_reports_a_port_inside_the_host() {
+    let env = Env::new();
+    env.write_config(
+        "[profiles.web]\nhost = \"example.com:2222\"\nuser = \"root\"\n\n\
+         [profiles.u]\nhost = \"h:22\"\nuser = \"ssh://admin\"\n\n\
+         [profiles.ok]\nhost = \"2001:db8::1\"\n",
+    );
+    let ssh = fake_ssh_with_version(&env);
+    let out = env
+        .cmd()
+        .arg("doctor")
+        .env("LOPI_SSH_BIN", &ssh)
+        .output()
+        .unwrap();
+    let report = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        report.contains("profile 'web' has more than a host name in its address"),
+        "{report}"
+    );
+    assert!(
+        report.contains("`lopi edit web --host example.com --port 2222`"),
+        "{report}"
+    );
+    assert!(
+        report.contains("`lopi edit u --host h --user admin --port 22`"),
+        "{report}"
+    );
+    assert!(!report.contains("profile 'ok'"), "{report}");
+}
+
+#[test]
 fn rename_updates_jump_references() {
     let env = Env::new();
     env.write_config(

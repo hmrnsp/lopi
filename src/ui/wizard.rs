@@ -10,7 +10,7 @@ use zeroize::Zeroizing;
 
 use super::prompt::{Prompter, TextQuestion};
 use crate::cli::{AddArgs, AuthArg, EditArgs, PortArg};
-use crate::config::model::{split_target, validate_host, validate_name, validate_user};
+use crate::config::model::{Target, parse_host_input, parse_target, validate_name, validate_user};
 use crate::config::{Auth, Config, Profile};
 use crate::error::Abort;
 use crate::ssh::args::destination;
@@ -117,23 +117,30 @@ pub fn add(
     }
 
     if args.target.is_none() {
-        let target = prompter.text(
+        let given_port = args.port;
+        let answer = prompter.text(
             TextQuestion::new("Host:")
-                .help("IP address or host name; user@host also works")
-                .validate(validate_target),
+                .help("IP address or host name; user@host and host:port also work")
+                .validate(move |target| validate_target(target, given_port)),
         )?;
-        let has_user = split_target(&target).0.is_some();
-        let target = if has_user {
-            target
-        } else {
-            let user = prompter.text(
+        let target = parse_target(&answer)?;
+        let user = match target.user {
+            Some(user) => user,
+            None => prompter.text(
                 TextQuestion::new("User:")
                     .default_value(Some(DEFAULT_USER))
                     .validate(|user| validate_user(user).map_err(|err| err.to_string())),
-            )?;
-            format!("{user}@{target}")
+            )?,
         };
-        args.target = Some(target);
+        // A port in the answer counts as given, so it is not asked again below.
+        args.port = args.port.or(target.port);
+        args.target = Some(
+            Target {
+                user: Some(user),
+                ..target
+            }
+            .destination(),
+        );
     }
 
     if args.port.is_none() {
@@ -206,7 +213,11 @@ pub fn edit(
         TextQuestion::new("Host:")
             .default_value(Some(&profile.host))
             .help(keep)
-            .validate(|host| validate_host(host).map_err(|err| err.to_string())),
+            .validate(|host| {
+                parse_host_input(host)
+                    .map(|_| ())
+                    .map_err(|err| err.to_string())
+            }),
     )?;
     args.host = (host != profile.host).then_some(host);
 
@@ -298,12 +309,14 @@ pub fn local_keys(home: Option<&Path>) -> Vec<String> {
     keys
 }
 
-fn validate_target(target: &str) -> Result<(), String> {
-    let (user, host) = split_target(target);
-    if let Some(user) = user {
-        validate_user(user).map_err(|err| err.to_string())?;
-    }
-    validate_host(host).map_err(|err| err.to_string())
+/// A destination answer, also checked against a port given with `--port`.
+fn validate_target(target: &str, given_port: Option<u16>) -> Result<(), String> {
+    let mut probe = AddArgs {
+        target: Some(target.to_string()),
+        port: given_port,
+        ..AddArgs::default()
+    };
+    probe.take_port_from_target().map_err(|err| err.to_string())
 }
 
 fn ask_port(prompter: &mut dyn Prompter, default: &str) -> Result<u16> {
@@ -463,6 +476,56 @@ mod tests {
             Some("pw")
         );
         assert!(!p.asked.iter().any(|q| q.starts_with("Login with")));
+    }
+
+    #[test]
+    fn add_takes_the_port_from_the_host_answer() {
+        let (plan, p) = run_add(
+            &Config::default(),
+            AddArgs::default(),
+            vec![
+                Text("web"),
+                Text("admin@example.com:2222"),
+                Pick("agent"),
+                Text(""),
+                Yes,
+            ],
+        );
+        let AddPlan { args, .. } = plan.unwrap();
+        assert!(p.finished());
+        assert!(!p.asked.iter().any(|q| q.starts_with("User")));
+        assert!(!p.asked.iter().any(|q| q.starts_with("Port")));
+        assert_eq!(args.target.as_deref(), Some("admin@example.com"));
+        assert_eq!(args.port, Some(2222));
+    }
+
+    #[test]
+    fn add_refuses_a_host_port_that_differs_from_the_port_flag() {
+        let given = AddArgs {
+            port: Some(2200),
+            ..AddArgs::default()
+        };
+        let (plan, p) = run_add(
+            &Config::default(),
+            given,
+            vec![
+                Text("web"),
+                Text("example.com:2222"),
+                Text("[::1]"),
+                Text(""),
+                Pick("agent"),
+                Text(""),
+                Yes,
+            ],
+        );
+        let AddPlan { args, .. } = plan.unwrap();
+        assert!(
+            p.rejected[0].contains("port given twice"),
+            "{:?}",
+            p.rejected
+        );
+        assert_eq!(args.target.as_deref(), Some("root@::1"));
+        assert_eq!(args.port, Some(2200));
     }
 
     #[test]

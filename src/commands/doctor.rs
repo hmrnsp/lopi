@@ -8,11 +8,13 @@ use std::process::Command;
 
 use anyhow::Result;
 
+use crate::config::model::{Target, edit_flags, parse_target};
 use crate::config::{Config, paths, store};
 use crate::install;
 use crate::secrets::{KeyringStore, SecretStore};
+use crate::ssh::args::{destination, expand_tilde};
 use crate::ssh::jump::jump_case_mismatches;
-use crate::ssh::{self, args::expand_tilde};
+use crate::ssh::{self};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Status {
@@ -56,6 +58,7 @@ pub fn run() -> Result<i32> {
     let config = check_profiles(&mut checks);
     let ssh_version = check_ssh(config.as_ref(), &mut checks);
     if let Some(config) = &config {
+        check_destinations(config, &mut checks);
         check_keys(config, &mut checks);
         check_passwords(config, ssh_version, &mut checks);
     }
@@ -201,6 +204,32 @@ fn check_jump_names(config: &Config, checks: &mut Vec<Check>) {
                 ),
             ));
         }
+    }
+}
+
+/// A port or `ssh://` inside the saved host or user, which `lopi add` used to accept
+/// (`lopi add web example.com:2222`) and ssh cannot use as a host name.
+fn check_destinations(config: &Config, checks: &mut Vec<Check>) {
+    for (name, profile) in &config.profiles {
+        let saved = destination(profile);
+        let Ok(target) = parse_target(&saved) else {
+            continue;
+        };
+        if target.user == profile.user && target.host == profile.host && target.port.is_none() {
+            continue;
+        }
+        // Only what has to change: a user that is already right is left out of the fix.
+        let fix = Target {
+            user: target
+                .user
+                .clone()
+                .filter(|user| profile.user.as_ref() != Some(user)),
+            ..target
+        };
+        checks.push(Check::warn(
+            format!("profile '{name}' has more than a host name in its address: {saved}"),
+            format!("`lopi edit {name} {}`", edit_flags(&fix)),
+        ));
     }
 }
 

@@ -5,7 +5,7 @@ use super::{
     stored_key, warn_about_captured_jumps, warn_about_jump,
 };
 use crate::cli::AddArgs;
-use crate::config::model::{split_target, validate_name};
+use crate::config::model::{parse_target, validate_name};
 use crate::config::store::{self, StorePaths};
 use crate::config::{Auth, Config, Profile};
 use crate::ssh::args::destination;
@@ -16,7 +16,8 @@ use crate::ui::wizard::{self, AddPlan};
 /// With a name and a target, adds right away (asking only for the password with
 /// `--password`). Otherwise (in a terminal) asks for what is missing; flags already given
 /// are not asked again.
-pub fn run(args: AddArgs) -> Result<i32> {
+pub fn run(mut args: AddArgs) -> Result<i32> {
+    args.take_port_from_target()?;
     let plan = if args.name.is_some() && args.target.is_some() {
         let password = if args.password {
             password_store()?;
@@ -54,16 +55,16 @@ fn save(plan: AddPlan) -> Result<i32> {
     let name = name.context("internal error: add without a name")?;
     let target = target.context("internal error: add without a target")?;
     validate_name(&name)?;
-    let (user, host) = split_target(&target);
+    let target = parse_target(&target)?;
     let profile = Profile {
-        user: user.map(str::to_string),
+        user: target.user,
         port,
         key: key.map(stored_key).transpose()?.flatten(),
         jump: jump.and_then(non_empty),
         forward: non_empty_list(forwards),
         auth: password_login.then_some(Auth::Password),
         note: note.and_then(non_empty),
-        ..Profile::new(host)
+        ..Profile::new(target.host)
     };
     // Checked here too (mutate validates again) so the error names the bad field directly.
     profile.validate()?;

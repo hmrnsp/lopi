@@ -5,7 +5,7 @@ use super::{
     save_password, stored_key, warn_about_captured_jumps, warn_about_jump,
 };
 use crate::cli::{AuthArg, EditArgs};
-use crate::config::model::validate_name;
+use crate::config::model::{parse_host_input, validate_name};
 use crate::config::store;
 use crate::resolve::resolve;
 use crate::ssh::args::destination;
@@ -88,6 +88,7 @@ fn save(plan: EditPlan) -> Result<i32> {
     if let Some(new_name) = &rename {
         validate_name(new_name)?;
     }
+    let host = host.as_deref().map(parse_host_input).transpose()?;
     // Normalized before taking the lock: it may print a warning about a missing file.
     let key = key.map(stored_key).transpose()?;
     let secrets = password.as_ref().map(|_| password_store()).transpose()?;

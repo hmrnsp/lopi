@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renaming a profile (`lopi edit <name> --rename <new>`) now also updates the jump hosts of
   profiles that go through it. Before, they kept the old name and ssh treated it as a host
   name.
+- `lopi add web example.com:2222` saved `example.com:2222` as the host name, which ssh
+  cannot connect to. The port is now taken from the address, as it is from
+  `ssh://user@host:port` and `user@[2001:db8::1]:port`; a port that differs from `--port`
+  is an error. `lopi edit --host` refuses a value with a port or user and says which
+  options to use. `lopi doctor` reports profiles saved this way and how to fix them.
 - Adding a profile, or renaming one, to a name that other profiles use as a jump host name
   now warns that those profiles will jump through the new profile.
 

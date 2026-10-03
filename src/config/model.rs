@@ -241,13 +241,110 @@ impl Profile {
     }
 }
 
-/// Splits `[user@]host` at the first `@`. Odd input (`@h`, `u@`, `a@b@c`) is left for
-/// validation to reject.
-pub fn split_target(target: &str) -> (Option<&str>, &str) {
-    match target.split_once('@') {
-        Some((user, host)) => (Some(user), host),
-        None => (None, target),
+/// A destination as typed by the user, split into its parts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Target {
+    pub user: Option<String>,
+    /// Without brackets: `2001:db8::1`, not `[2001:db8::1]`.
+    pub host: String,
+    pub port: Option<u16>,
+}
+
+impl Target {
+    /// `[user@]host`, the form `add` saves (the port is stored on its own).
+    pub fn destination(&self) -> String {
+        match &self.user {
+            Some(user) => format!("{user}@{}", self.host),
+            None => self.host.clone(),
+        }
     }
+}
+
+/// Parses what the user typed as a destination: `[user@]host`, `[user@]host:port`,
+/// `[user@][v6]:port`, or `ssh://[user@]host[:port]`. A host with two or more `:` and no
+/// brackets is an IPv6 address without a port. Only for input: saved files are checked by
+/// [`Profile::validate`], which stays lenient so an old file never blocks a save.
+pub fn parse_target(text: &str) -> Result<Target> {
+    let rest = match text.strip_prefix("ssh://") {
+        Some(rest) => rest.strip_suffix('/').unwrap_or(rest),
+        None => text,
+    };
+    let (user, address) = match rest.split_once('@') {
+        Some((user, address)) => (Some(user), address),
+        None => (None, rest),
+    };
+    if let Some(user) = user {
+        validate_user(user)?;
+    }
+    let (host, port) = split_port(address, text)?;
+    validate_host(host)?;
+    if host.contains(['/', '[', ']']) {
+        bail!("'{text}' is not [user@]host[:port]");
+    }
+    Ok(Target {
+        user: user.map(str::to_string),
+        host: host.to_string(),
+        port,
+    })
+}
+
+fn split_port<'a>(address: &'a str, typed: &str) -> Result<(&'a str, Option<u16>)> {
+    if let Some(inside) = address.strip_prefix('[') {
+        let (host, after) = inside
+            .split_once(']')
+            .with_context(|| format!("'{typed}' has a '[' without its ']'"))?;
+        let port = match after {
+            "" => None,
+            _ => {
+                let port = after
+                    .strip_prefix(':')
+                    .with_context(|| format!("'{typed}' has text after ']' that is not :port"))?;
+                Some(parse_port(port, typed)?)
+            }
+        };
+        return Ok((host, port));
+    }
+    match address.split_once(':') {
+        Some((host, port)) if !port.contains(':') => Ok((host, Some(parse_port(port, typed)?))),
+        _ => Ok((address, None)),
+    }
+}
+
+fn parse_port(port: &str, typed: &str) -> Result<u16> {
+    let parsed = port
+        .bytes()
+        .all(|b| b.is_ascii_digit())
+        .then(|| port.parse::<u16>().ok())
+        .flatten()
+        .filter(|port| *port > 0);
+    parsed.with_context(|| {
+        format!("'{typed}' is not host:port with a port from 1 to 65535; give the port with -p")
+    })
+}
+
+/// A host typed on its own (`edit --host`): a user or port belongs in its own option.
+/// Returns the host without brackets.
+pub fn parse_host_input(text: &str) -> Result<String> {
+    let target = parse_target(text)?;
+    if target.user.is_none() && target.port.is_none() {
+        return Ok(target.host);
+    }
+    bail!(
+        "'{text}' is more than a host name; use {}",
+        edit_flags(&target)
+    )
+}
+
+/// `--host H [--user U] [--port P]` for a parsed target, as a fix to suggest.
+pub fn edit_flags(target: &Target) -> String {
+    let mut flags = format!("--host {}", target.host);
+    if let Some(user) = &target.user {
+        flags.push_str(&format!(" --user {user}"));
+    }
+    if let Some(port) = target.port {
+        flags.push_str(&format!(" --port {port}"));
+    }
+    flags
 }
 
 /// `jump` is a comma-separated list; each item is `[user@]host[:port]` or a profile name.
@@ -379,6 +476,66 @@ mod tests {
         }
         assert!(validate_user("root").is_ok());
         assert!(validate_user("-l").is_err());
+    }
+
+    #[test]
+    fn targets() {
+        let target = |user: Option<&str>, host: &str, port: Option<u16>| Target {
+            user: user.map(str::to_string),
+            host: host.into(),
+            port,
+        };
+        let ok = [
+            ("h", target(None, "h", None)),
+            ("u@h", target(Some("u"), "h", None)),
+            ("h:2222", target(None, "h", Some(2222))),
+            ("u@h:2222", target(Some("u"), "h", Some(2222))),
+            ("ssh://u@h:22", target(Some("u"), "h", Some(22))),
+            ("ssh://h/", target(None, "h", None)),
+            ("[::1]", target(None, "::1", None)),
+            ("u@[::1]:22", target(Some("u"), "::1", Some(22))),
+            ("2001:db8::1", target(None, "2001:db8::1", None)),
+            ("u@2001:db8::1", target(Some("u"), "2001:db8::1", None)),
+        ];
+        for (text, expected) in ok {
+            assert_eq!(parse_target(text).unwrap(), expected, "{text}");
+        }
+        for bad in [
+            "",
+            "h:",
+            "h:0",
+            "h:65536",
+            "h:abc",
+            "h:+22",
+            "[::1",
+            "[::1]x",
+            "[::1]:",
+            "ssh://u@h/path",
+            "-x",
+            "u@",
+            "@h",
+            "a@b@c",
+            "a b",
+        ] {
+            assert!(parse_target(bad).is_err(), "{bad:?}");
+        }
+        assert_eq!(target(Some("u"), "::1", Some(22)).destination(), "u@::1");
+    }
+
+    #[test]
+    fn host_input() {
+        assert_eq!(parse_host_input("h").unwrap(), "h");
+        assert_eq!(parse_host_input("[::1]").unwrap(), "::1");
+        assert_eq!(parse_host_input("2001:db8::1").unwrap(), "2001:db8::1");
+        let err = parse_host_input("example.com:2222")
+            .unwrap_err()
+            .to_string();
+        assert_eq!(
+            err,
+            "'example.com:2222' is more than a host name; use --host example.com --port 2222"
+        );
+        let err = parse_host_input("root@h").unwrap_err().to_string();
+        assert!(err.contains("use --host h --user root"), "{err}");
     }
 
     #[test]

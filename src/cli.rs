@@ -152,6 +152,25 @@ pub struct AddArgs {
     pub password: bool,
 }
 
+impl AddArgs {
+    /// Moves a port written into the target (`host:2222`, `[::1]:22`, `ssh://host:22`) to
+    /// `port`, leaving `target` as `[user@]host`. Fails when it differs from `--port`.
+    pub fn take_port_from_target(&mut self) -> anyhow::Result<()> {
+        let Some(text) = &self.target else {
+            return Ok(());
+        };
+        let target = crate::config::model::parse_target(text)?;
+        if let (Some(given), Some(typed)) = (self.port, target.port)
+            && given != typed
+        {
+            anyhow::bail!("port given twice: {typed} in '{text}' and --port {given}");
+        }
+        self.port = self.port.or(target.port);
+        self.target = Some(target.destination());
+        Ok(())
+    }
+}
+
 /// Only the given fields change. Pass "" to clear user, port, key, jump, forwards or note.
 #[derive(Debug, Default, Args)]
 pub struct EditArgs {

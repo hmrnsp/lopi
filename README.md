@@ -72,6 +72,9 @@ added 'office' (admin@10.0.0.5); connect with `lopi office`
 | `-p 2222`             | The SSH port (optional; without it, ssh uses port 22) |
 | `-i ~/.ssh/id_office` | The private key to log in with (optional)             |
 
+The port can also be part of the address: `admin@10.0.0.5:2222`,
+`ssh://admin@10.0.0.5:2222`, or `admin@[2001:db8::1]:2222` for an IPv6 address.
+
 **3. Connect.**
 
 ```sh

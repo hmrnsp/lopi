@@ -105,11 +105,11 @@ lopi needs the OpenSSH client (`ssh`). Check with `ssh -V`; if it is missing:
 
 Prebuilt binaries are available for:
 
-| System        | Architecture                                      |
-| ------------- | ------------------------------------------------- |
-| Windows 10/11 | x86_64                                            |
-| macOS         | Apple Silicon (arm64) and Intel (x86_64)          |
-| Linux         | x86_64 (static binary, works on any distribution) |
+| System        | Architecture                                                              |
+| ------------- | ------------------------------------------------------------------------- |
+| Windows 10/11 | x86_64                                                                    |
+| macOS         | Apple Silicon (arm64) and Intel (x86_64)                                  |
+| Linux         | x86_64 and ARM64 (aarch64), static binaries that work on any distribution |
 
 On other systems, [build from source](#from-source).
 
@@ -119,10 +119,13 @@ On other systems, [build from source](#from-source).
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/hmrnsp/lopi/releases/latest/download/lopi-ssh-installer.sh | sh
 ```
 
-The script installs `lopi` to `~/.cargo/bin` and adds that folder to your `PATH`
-through your shell's startup files. Open a new terminal afterwards.
+The script picks the right binary for Intel/AMD or ARM64, installs `lopi` to
+`~/.cargo/bin` and adds that folder to your `PATH` through your shell's startup files.
+Open a new terminal afterwards.
 
-Or install by hand: download `lopi-ssh-x86_64-unknown-linux-musl.tar.xz` from the
+Or install by hand: download `lopi-ssh-x86_64-unknown-linux-musl.tar.xz` (Intel/AMD) or
+`lopi-ssh-aarch64-unknown-linux-musl.tar.xz` (ARM64, such as a Raspberry Pi with a 64-bit
+OS; check with `uname -m`) from the
 [latest release](https://github.com/hmrnsp/lopi/releases/latest), then:
 
 ```sh

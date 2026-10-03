@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Prebuilt Linux binary for ARM64 (`aarch64-unknown-linux-musl`), such as a Raspberry Pi
+  with a 64-bit OS or an ARM server; the shell installer picks it automatically.
 - `lopi list --json` prints the profiles as a JSON array for scripts, with the same order
   options (`--recent`). Passwords are never included.
 

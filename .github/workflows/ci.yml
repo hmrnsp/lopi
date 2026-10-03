@@ -50,7 +50,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # ubuntu-24.04-arm: the aarch64 Linux binary is released too
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7

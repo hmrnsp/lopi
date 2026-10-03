@@ -54,7 +54,7 @@ Every pull request must pass:
 
 - `cargo fmt --check`
 - `cargo clippy --all-targets --locked -- -D warnings`, on Linux, macOS and Windows
-- `cargo test --locked`, on Linux, macOS and Windows
+- `cargo test --locked`, on Linux (x86_64 and ARM64), macOS and Windows
 - `cargo check --locked` with Rust 1.89 (the MSRV)
 - the bash, zsh and PowerShell completion scripts parse (`bash -n`, `zsh -n`, PowerShell's parser)
 

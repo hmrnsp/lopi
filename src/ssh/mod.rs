@@ -7,8 +7,11 @@ mod launch_windows;
 
 use std::env;
 use std::ffi::{OsStr, OsString};
-use std::io;
-use std::process::Command;
+use std::io::{self, Read};
+use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::{Error, anyhow};
 
@@ -39,6 +42,69 @@ pub fn launch(bin: &OsStr, args: &[OsString], env: &[(OsString, OsString)]) -> a
     return launch_unix::launch(command, bin);
     #[cfg(windows)]
     return launch_windows::launch(command, bin);
+}
+
+/// What a non-interactive ssh run produced (see [`run_captured`]).
+#[derive(Debug)]
+pub struct Captured {
+    /// ssh exited with 0.
+    pub success: bool,
+    pub stderr: String,
+    /// From start until ssh exited (or was stopped).
+    pub elapsed: Duration,
+    /// ssh was stopped after the time limit.
+    pub timed_out: bool,
+}
+
+/// Runs ssh without the terminal: stdin and stdout are discarded and stderr is captured.
+/// Only for checks that must never ask anything (`ping`); connections use [`launch`],
+/// which hands the terminal to ssh. ssh is stopped after `limit`.
+pub fn run_captured(
+    bin: &OsStr,
+    args: &[OsString],
+    env: &[(OsString, OsString)],
+    limit: Duration,
+) -> anyhow::Result<Captured> {
+    let started = Instant::now();
+    let mut child = Command::new(bin)
+        .args(args)
+        .envs(env.iter().map(|(key, value)| (key, value)))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| start_error(err, bin))?;
+    // Read on a thread so a chatty ssh cannot fill the pipe and stall. A jump host's ssh
+    // (a child of ssh) may keep the pipe open after ssh is stopped, so the reader is
+    // waited for only briefly.
+    let mut pipe = child.stderr.take().expect("stderr is piped");
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = pipe.read_to_end(&mut bytes);
+        let _ = sender.send(String::from_utf8_lossy(&bytes).into_owned());
+    });
+    let (success, timed_out) = loop {
+        if let Some(status) = child.try_wait()? {
+            break (status.success(), false);
+        }
+        if started.elapsed() >= limit {
+            let _ = child.kill();
+            let _ = child.wait();
+            break (false, true);
+        }
+        thread::sleep(Duration::from_millis(20));
+    };
+    let elapsed = started.elapsed();
+    let stderr = receiver
+        .recv_timeout(Duration::from_secs(1))
+        .unwrap_or_default();
+    Ok(Captured {
+        success,
+        stderr,
+        elapsed,
+        timed_out,
+    })
 }
 
 fn start_error(err: io::Error, bin: &OsStr) -> Error {

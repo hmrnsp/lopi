@@ -72,6 +72,14 @@ src/
    exits with ssh's exit code (255 means the connection failed). A missing ssh gives an
    error that says how to install it.
 
+`lopi ping` builds the same arguments (`commands::connect::prepare`, then `build_args`)
+without forwards, plus options that offer no login method (`PreferredAuthentications=none`,
+`BatchMode`, `ControlPath=none`). It runs ssh with `ssh::run_captured` (stdin and stdout
+discarded, stderr read, stopped after 15 seconds) and reads ssh's messages from the last
+line back (`commands::ping::classify`): "Permission denied" means the server answered;
+after a jump host fails, ssh's last line is the closed connection and the jump's own
+error comes before it.
+
 The ssh program is `LOPI_SSH_BIN` if set, else `ssh_bin` from the profiles file, else
 `ssh` from `PATH` (`ssh::ssh_bin`).
 

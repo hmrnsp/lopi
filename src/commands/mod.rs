@@ -9,6 +9,7 @@ pub mod list;
 pub mod passwd;
 pub mod path;
 pub mod pick;
+pub mod ping;
 pub mod restore;
 pub mod rm;
 pub mod uninstall;

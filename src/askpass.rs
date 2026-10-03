@@ -18,6 +18,9 @@ use crate::secrets::{KeyringStore, SecretStore};
 pub const ID_ENV: &str = "LOPI_ASKPASS_ID";
 /// `user@host` (or `host`) the saved password belongs to.
 pub const TARGET_ENV: &str = "LOPI_ASKPASS_TARGET";
+/// Set by `lopi ping`: every prompt is refused, so a jump host's ssh (which does not
+/// inherit `BatchMode`) never waits for an answer.
+pub const REFUSE_ENV: &str = "LOPI_ASKPASS_REFUSE";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PromptKind {
@@ -88,6 +91,9 @@ pub fn answer(
 /// Called first thing in `main`: runs askpass mode when ssh started us as `SSH_ASKPASS`,
 /// returning the exit code. `None` means a normal run.
 pub fn run_if_requested() -> Option<i32> {
+    if env::var_os(REFUSE_ENV).is_some_and(|value| !value.is_empty()) {
+        return Some(1);
+    }
     let id = env::var(ID_ENV).ok().filter(|id| !id.is_empty())?;
     let target = env::var(TARGET_ENV).unwrap_or_default();
     let prompt = env::args().nth(1).unwrap_or_default();

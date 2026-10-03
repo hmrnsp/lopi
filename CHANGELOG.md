@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `lopi ping [name]` checks that a profile's ssh server answers, without logging in or
+  asking anything, through the profile's port and jump hosts. It says why when it does
+  not (name not found, port closed, timeout, a failing jump host, a changed host key) and
+  exits with `1`. Without a name it lets you choose from the table.
 - Prebuilt Linux binary for ARM64 (`aarch64-unknown-linux-musl`), such as a Raspberry Pi
   with a 64-bit OS or an ARM server; the shell installer picks it automatically.
 - `lopi list --json` prints the profiles as a JSON array for scripts, with the same order

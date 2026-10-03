@@ -12,7 +12,7 @@ const POWERSHELL: &str = include_str!("lopi.ps1");
 
 /// Subcommands whose first argument is an existing profile name, completed with
 /// `lopi __complete`. Add new ones here (not `add`: its name is a new one).
-pub const PROFILE_SUBCOMMANDS: &[&str] = &["connect", "edit", "passwd", "rm"];
+pub const PROFILE_SUBCOMMANDS: &[&str] = &["connect", "edit", "passwd", "ping", "rm"];
 
 pub fn script(shell: Shell) -> String {
     let subcommands = visible_subcommands();
@@ -125,11 +125,14 @@ mod tests {
             "add takes a new name"
         );
         let cases = [
-            (Shell::Bash, r#"" connect edit passwd rm " == *" $sub "*"#),
-            (Shell::Zsh, "== (connect|edit|passwd|rm)"),
+            (
+                Shell::Bash,
+                r#"" connect edit passwd ping rm " == *" $sub "*"#,
+            ),
+            (Shell::Zsh, "== (connect|edit|passwd|ping|rm)"),
             (
                 Shell::Powershell,
-                "@('connect', 'edit', 'passwd', 'rm') -contains $words[1]",
+                "@('connect', 'edit', 'passwd', 'ping', 'rm') -contains $words[1]",
             ),
         ];
         for (shell, expected) in cases {

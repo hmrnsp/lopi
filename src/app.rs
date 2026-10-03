@@ -18,6 +18,7 @@ pub fn run() -> Result<i32> {
         Command::Edit(args) => commands::edit::run(args),
         Command::Path => commands::path::run(),
         Command::Doctor => commands::doctor::run(),
+        Command::Ping { name } => commands::ping::run(name),
         Command::Backup {
             file,
             no_keys,

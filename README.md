@@ -291,6 +291,7 @@ lopi office -- uptime                # run a remote command
 | `lopi passwd [name] [--remove]`           | Save, change or delete a profile's password                                   |
 | `lopi backup [file]`                      | Profiles, passwords and key files in one encrypted file                       |
 | `lopi restore [file]`                     | Bring a backup back; without a file, choose an automatic snapshot             |
+| `lopi ping [name]`                        | Check that a profile's ssh server answers, without logging in                 |
 | `lopi doctor`                             | Check ssh, the profiles file, key files and saved passwords                   |
 
 Options for `add` and `edit`: `-p/--port`, `-i/--key`, `-J/--jump`, `-f/--forward`
@@ -301,7 +302,7 @@ With `edit`, an empty value (`--note ""`) removes the field.
 Profile names are case-sensitive and always typed in full, in every command. When a
 name is not found, lopi suggests the closest ones and does nothing else.
 
-Without a name, `lopi`, `rm`, `edit` and `passwd` open a full-screen table of your
+Without a name, `lopi`, `rm`, `edit`, `passwd` and `ping` open a full-screen table of your
 profiles. Type to filter (any column, any case), move with ↑↓, PgUp/PgDn, Home/End,
 press Enter to choose, or Esc to cancel.
 
@@ -310,6 +311,27 @@ first value it sees, so `lopi office -p 22` overrides the saved port for one
 connection.
 
 Run `lopi --help` or `lopi <command> --help` for every option.
+
+### Checking a server
+
+`lopi ping office` checks that the server answers, without logging in: lopi runs your
+`ssh` (so the port, jump hosts and `~/.ssh/config` apply) offering no login method, and
+the server's refusal shows it is there. Nothing is asked, no password or key is sent, and
+`known_hosts` is never changed.
+
+```console
+$ lopi ping office
+office: ok, the ssh server answered in 42 ms (login: publickey,password)
+$ lopi ping db
+db: FAIL, jump host: connection refused: nothing listens on that port (via admin@zayd.example.com)
+  ssh: ssh: connect to host zayd.example.com port 22: Connection refused
+  ssh: Connection closed by UNKNOWN port 65535
+```
+
+It exits with `0` when the server answered and `1` when it did not, so it works in
+scripts. A server whose host key is not in `known_hosts` yet counts as answered (connect
+once with `lopi <name>` to check the key); a host key that has changed fails loudly. A
+jump host must accept a key or ssh-agent: `ping` never types its password.
 
 ## Jump hosts and port forwards
 
@@ -378,8 +400,8 @@ lopi restore lopi-backup-20261001.age
 
 ## Shell completion
 
-Press Tab to complete profile names (after `lopi`, `lopi connect`, `edit`, `passwd` and
-`rm`), command names, and shell names (after `lopi completion`). Works in bash, zsh and
+Press Tab to complete profile names (after `lopi`, `lopi connect`, `edit`, `passwd`,
+`ping` and `rm`), command names, and shell names (after `lopi completion`). Works in bash, zsh and
 PowerShell; `cmd.exe` is not supported.
 
 Set it up once per shell. The first line adds lopi to the shell's startup file; the
@@ -506,7 +528,8 @@ first.
 
 ## Exit codes
 
-`0` success · `1` error, a question was cancelled, or `doctor` found a problem · `2` usage error ·
+`0` success · `1` error, a question was cancelled, `doctor` found a problem, or `ping` got no
+answer · `2` usage error ·
 `130` interrupted with Ctrl+C · otherwise the exit code of `ssh` (`255` means the
 connection failed).
 

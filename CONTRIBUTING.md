@@ -65,7 +65,8 @@ Run the first three locally before you push.
 Unit tests live next to the code; `tests/cli.rs` runs the real binary with `assert_cmd`.
 Its `Env` helper creates a temporary profiles file and a fake `ssh` (a shell script on Unix,
 a `.cmd` file on Windows) that prints each argument on its own line, so tests check
-exactly what lopi would pass to ssh.
+exactly what lopi would pass to ssh. `FAKE_SSH_EXIT` sets its exit code and
+`FAKE_SSH_STDERR` a message on stderr (used by the `ping` tests).
 
 Environment variables used by tests:
 
@@ -152,6 +153,9 @@ These hold everywhere; a change that breaks one needs a very good reason.
 - **Paths.** lopi expands `~` itself and stores key paths as `~/.ssh/...` so the file
   stays portable.
 - **Key passphrases** are left to ssh: never pipe ssh's stdio and never force `BatchMode`.
+  The one exception is `ping`, which never logs in: it runs ssh with `BatchMode` and
+  stderr captured (`ssh::run_captured`), and answers a jump host's prompts with "no"
+  through askpass (`askpass::REFUSE_ENV`).
 - **Git Bash** ships its own `ssh`, which may differ from Windows' OpenSSH.
 - **No ssh on PATH** must give a clear error that says how to install it.
 

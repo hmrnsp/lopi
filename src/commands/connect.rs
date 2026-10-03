@@ -22,8 +22,9 @@ pub fn run(query: &OsStr, extra: &[OsString]) -> Result<i32> {
     connect(&config, name, extra)
 }
 
-/// Connects to the profile called exactly `name`.
-pub fn connect(config: &Config, name: &str, extra: &[OsString]) -> Result<i32> {
+/// The profile called exactly `name`, validated, with jump profile names replaced by their
+/// address (warning about jump items in another letter case). Ready for `build_args`.
+pub fn prepare(config: &Config, name: &str) -> Result<Profile> {
     let mut profile = config
         .profiles
         .get(name)
@@ -38,6 +39,12 @@ pub fn connect(config: &Config, name: &str, extra: &[OsString]) -> Result<i32> {
         }
     }
     profile.jump = profile.jump.map(|jump| resolve_jump(config, &jump));
+    Ok(profile)
+}
+
+/// Connects to the profile called exactly `name`.
+pub fn connect(config: &Config, name: &str, extra: &[OsString]) -> Result<i32> {
+    let profile = prepare(config, name)?;
     let mut args = build_args(&profile, extra, dirs::home_dir().as_deref());
     let env = if profile.uses_password() {
         password_env(name, &profile, &mut args)?

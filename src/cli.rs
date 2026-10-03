@@ -48,6 +48,12 @@ pub enum Command {
     /// Check ssh, the profiles file, key files and saved passwords
     Doctor,
 
+    /// Check that a profile's ssh server answers, without logging in
+    Ping {
+        /// Exact profile name (without it, choose from a list)
+        name: Option<String>,
+    },
+
     /// Save profiles, saved passwords and key files to one passphrase-encrypted file
     Backup {
         /// Where to write it (default: lopi-backup-YYYYMMDD.age in this folder)

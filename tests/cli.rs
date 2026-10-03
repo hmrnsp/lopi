@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use assert_cmd::Command;
 use tempfile::TempDir;
 
-/// A temporary config file plus a fake ssh that prints each argument on its own line and
-/// exits with `$FAKE_SSH_EXIT` (default 0).
+/// A temporary config file plus a fake ssh that prints each argument on its own line,
+/// writes `$FAKE_SSH_STDERR` (if set) to stderr and exits with `$FAKE_SSH_EXIT` (default 0).
 struct Env {
     dir: TempDir,
     config: PathBuf,
@@ -25,7 +25,8 @@ impl Env {
         cmd.env("LOPI_CONFIG", &self.config)
             .env("LOPI_SSH_BIN", &self.ssh)
             .env("LOPI_DATA_DIR", self.dir.path().join("data"))
-            .env_remove("FAKE_SSH_EXIT");
+            .env_remove("FAKE_SSH_EXIT")
+            .env_remove("FAKE_SSH_STDERR");
         cmd
     }
 
@@ -65,7 +66,9 @@ fn write_fake_ssh(dir: &TempDir) -> PathBuf {
     let path = dir.path().join("fake-ssh");
     fs::write(
         &path,
-        "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done\nexit ${FAKE_SSH_EXIT:-0}\n",
+        "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done\n\
+         if [ -n \"$FAKE_SSH_STDERR\" ]; then printf '%s\\n' \"$FAKE_SSH_STDERR\" >&2; fi\n\
+         exit ${FAKE_SSH_EXIT:-0}\n",
     )
     .unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
@@ -78,6 +81,8 @@ fn write_fake_ssh(dir: &TempDir) -> PathBuf {
     fs::write(
         &path,
         "@echo off\r\n\
+         if not defined FAKE_SSH_STDERR goto loop\r\n\
+         echo %FAKE_SSH_STDERR% 1>&2\r\n\
          :loop\r\n\
          if \"%~1\"==\"\" goto end\r\n\
          echo %~1\r\n\
@@ -816,6 +821,70 @@ fn ipv6_jump_hosts_are_bracketed() {
 }
 
 #[test]
+fn ping_reports_whether_the_server_answers() {
+    let env = Env::new();
+    env.ok(&[
+        "add",
+        "office",
+        "admin@10.0.0.5",
+        "-p",
+        "2222",
+        "-f",
+        "D:1080",
+    ]);
+    env.ok(&["add", "zayd", "admin@zayd.example.com"]);
+    env.ok(&["add", "db", "10.0.0.9", "-J", "zayd"]);
+    let ping = |name: &str, code: i32, stderr: &str| {
+        let out = env
+            .cmd()
+            .args(["ping", name])
+            .env("FAKE_SSH_EXIT", "255")
+            .env("FAKE_SSH_STDERR", stderr)
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(code), "{out:?}");
+        (
+            String::from_utf8_lossy(&out.stdout).into_owned(),
+            String::from_utf8_lossy(&out.stderr).into_owned(),
+        )
+    };
+
+    let (stdout, stderr) = ping(
+        "office",
+        0,
+        "admin@10.0.0.5: Permission denied (publickey,password).",
+    );
+    assert!(
+        stdout.starts_with("office: ok, the ssh server answered in "),
+        "{stdout}"
+    );
+    assert!(stdout.contains("(login: publickey,password)"), "{stdout}");
+    assert!(stderr.is_empty(), "{stderr}");
+
+    let (stdout, _) = ping("office", 0, "Host key verification failed.");
+    assert!(
+        stdout.contains("connect once with `lopi office`"),
+        "{stdout}"
+    );
+
+    let (stdout, stderr) = ping(
+        "db",
+        1,
+        "ssh: connect to host zayd.example.com port 22: Connection timed out",
+    );
+    assert_eq!(
+        stdout.trim(),
+        "db: FAIL, connection timed out (via admin@zayd.example.com)"
+    );
+    assert!(stderr.contains("  ssh: ssh: connect to host"), "{stderr}");
+
+    let err = env.fail(&["ping", "Office"]);
+    assert!(err.contains("did you mean 'office'"), "{err}");
+    let err = env.fail(&["ping"]);
+    assert!(err.contains("use lopi ping <name>"), "{err}");
+}
+
+#[test]
 fn rename_updates_jump_references() {
     let env = Env::new();
     env.write_config(
@@ -1031,7 +1100,7 @@ fn bash_completes_profile_names_where_a_profile_is_expected() {
             .collect()
     };
 
-    for sub in ["rm", "edit", "connect", "passwd"] {
+    for sub in ["rm", "edit", "connect", "passwd", "ping"] {
         let got = complete(&format!("lopi {sub} \"\""), 2);
         assert!(
             got.contains(&"kantor".to_string()) && got.contains(&"vps".to_string()),

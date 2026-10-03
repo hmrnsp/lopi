@@ -23,7 +23,9 @@ use crate::config::Config;
 use crate::config::key_path::normalize_key;
 use crate::secrets::{KeyringStore, SecretStore};
 use crate::ssh::args::expand_tilde;
-use crate::ssh::jump::{case_mismatch_warning, jump_case_mismatches, jump_profiles_with_keys};
+use crate::ssh::jump::{
+    case_mismatch_warning, jump_case_mismatches, jump_dependents, jump_profiles_with_keys,
+};
 use crate::ui::prompt::TerminalPrompter;
 use crate::ui::tty;
 use crate::ui::wizard::ask_password;
@@ -135,4 +137,29 @@ fn warn_about_jump(config: &Config, name: &str) {
              add it to ssh-agent (`ssh-add <key>`) or set IdentityFile for that host in ~/.ssh/config"
         );
     }
+}
+
+/// `name` just came into being (added, or renamed to): profiles that jumped through a host
+/// of that name now jump through this profile instead, since profile names win over hosts.
+fn warn_about_captured_jumps(name: &str, captured: &[impl AsRef<str>]) {
+    for other in captured.iter().map(AsRef::as_ref) {
+        eprintln!(
+            "lopi: warning: '{other}' jumps through '{name}', which now means this profile \
+             (it was a host name)"
+        );
+    }
+}
+
+/// Refuses to remove a profile that others jump through: their `jump` would silently turn
+/// into a host name, which may reach another machine.
+fn check_no_jump_dependents(config: &Config, name: &str) -> Result<()> {
+    let dependents = jump_dependents(config, name);
+    let Some(first) = dependents.first() else {
+        return Ok(());
+    };
+    bail!(
+        "'{name}' is the jump host of: {}; change those first, e.g. \
+         `lopi edit {first} --jump <other>` or `lopi edit {first} --jump \"\"`; nothing was removed",
+        dependents.join(", ")
+    )
 }

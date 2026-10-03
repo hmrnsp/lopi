@@ -135,6 +135,11 @@ These hold everywhere; a change that breaks one needs a very good reason.
   are rejected by `add` and `--rename` (`Config::check_unique`). A jump item in another
   letter case than a profile is used as a host name, with a warning
   (`ssh::jump::jump_case_mismatches`).
+- **Jump references.** A bare jump item that is exactly a profile name means that profile.
+  `edit --rename` rewrites such items in other profiles (`ssh::jump::rename_in_jump`) in the
+  same write, and `rm` refuses while any profile jumps through the one being removed
+  (`ssh::jump::jump_dependents`). Adding or renaming to a name that other profiles use as a
+  jump host name warns, because those jumps now reach the profile.
 - **Option injection.** Host, user and profile name must not start with `-`, and lopi
   always puts `--` before the destination. clap already rejects such values, but the
   checks in `config/model.rs` stay: values can arrive through `-- -x`, `--host=-x` or a

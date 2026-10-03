@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use super::{forget_password, require_terminal};
+use super::{check_no_jump_dependents, forget_password, require_terminal};
 use crate::config::store;
 use crate::error::Abort;
 use crate::resolve::resolve;
@@ -22,6 +22,8 @@ pub fn run(name: Option<String>, yes: bool) -> Result<i32> {
             (name, &config.profiles[name])
         }
     };
+    // Checked before asking, so nobody confirms a removal that is then refused.
+    check_no_jump_dependents(&config, name)?;
     if !yes {
         require_terminal("-y to remove without confirmation")?;
         let question = format!("Remove profile '{name}' ({})?", ui::target(profile));
@@ -32,6 +34,7 @@ pub fn run(name: Option<String>, yes: bool) -> Result<i32> {
     let removed = store::mutate(|config| {
         // Exact name again: the file may have changed since it was loaded above.
         resolve(config, name)?;
+        check_no_jump_dependents(config, name)?;
         Ok(config.profiles.remove(name))
     })?;
     println!("removed '{name}'");

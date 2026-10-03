@@ -53,6 +53,36 @@ pub fn resolve_jump(config: &Config, jump: &str) -> String {
         .join(",")
 }
 
+/// Other profiles whose `jump` names `name` as a bare item, so they connect through it.
+pub fn jump_dependents<'a>(config: &'a Config, name: &str) -> Vec<&'a str> {
+    config
+        .profiles
+        .iter()
+        .filter(|(other, _)| other.as_str() != name)
+        .filter(|(_, profile)| {
+            profile
+                .jump
+                .as_deref()
+                .is_some_and(|jump| jump.split(',').any(|item| item == name))
+        })
+        .map(|(other, _)| other.as_str())
+        .collect()
+}
+
+/// `jump` with every bare item that is exactly `old` replaced by `new`; `None` when there
+/// is none. Items with a user or port (`root@old`, `old:22`) are host names, not profiles,
+/// and stay as they are.
+pub fn rename_in_jump(jump: &str, old: &str, new: &str) -> Option<String> {
+    if !jump.split(',').any(|item| item == old) {
+        return None;
+    }
+    let items: Vec<&str> = jump
+        .split(',')
+        .map(|item| if item == old { new } else { item })
+        .collect();
+    Some(items.join(","))
+}
+
 /// Profiles used as jump hosts whose key ssh will not use for the jump (ssh applies `-i`
 /// to the destination only).
 pub fn jump_profiles_with_keys<'a>(config: &'a Config, jump: &str) -> Vec<&'a str> {
@@ -124,6 +154,48 @@ mod tests {
             case_mismatch_warning("Bastion", "bastion"),
             "'Bastion' is not a profile (did you mean 'bastion'?); using it as a host name"
         );
+    }
+
+    #[test]
+    fn renames_bare_items_only() {
+        let cases = [
+            ("zayd", Some("bastion")),
+            ("gw,zayd", Some("gw,bastion")),
+            ("zayd,zayd", Some("bastion,bastion")),
+            ("root@zayd", None),
+            ("zayd:22", None),
+            ("Zayd", None),
+            ("zayd2", None),
+            ("", None),
+        ];
+        for (jump, expected) in cases {
+            assert_eq!(
+                rename_in_jump(jump, "zayd", "bastion").as_deref(),
+                expected,
+                "{jump}"
+            );
+        }
+    }
+
+    #[test]
+    fn finds_profiles_that_jump_through_a_name() {
+        let mut cfg = config();
+        for (name, jump) in [
+            ("db", "bastion"),
+            ("app", "gw,bastion"),
+            ("web", "root@bastion"),
+            ("api", "Bastion"),
+        ] {
+            let profile = Profile {
+                jump: Some(jump.into()),
+                ..Profile::new("10.0.0.9")
+            };
+            cfg.profiles.insert(name.into(), profile);
+        }
+        // a profile that jumps through itself is not a dependent of itself
+        cfg.profiles.get_mut("bastion").unwrap().jump = Some("bastion".into());
+        assert_eq!(jump_dependents(&cfg, "bastion"), ["app", "db"]);
+        assert!(jump_dependents(&cfg, "nothing").is_empty());
     }
 
     #[test]

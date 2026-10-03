@@ -310,6 +310,11 @@ Anything else is passed to ssh as a host name; lopi warns when it differs from a
 name only in letter case (`Zayd` vs `zayd`). The jump profile's key is not passed
 on (`ssh` applies `-i` to the destination only); load it with `ssh-add`.
 
+Renaming a profile also updates the jumps that name it (`lopi edit zayd --rename bastion`
+changes `--jump zayd` to `--jump bastion` in `db`). `lopi rm` refuses to remove a profile
+that another profile jumps through, and names those profiles: change their `--jump` first.
+Otherwise the name would silently become a host name and could reach another machine.
+
 ## Passwords
 
 For servers that only accept a password, lopi can save it and fill it in:

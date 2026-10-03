@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `lopi rm` refuses to remove a profile that another profile uses as its jump host, and
+  says which profiles to change first. Before, their jump silently became a host name of
+  the same name, which could reach another machine.
+
+### Fixed
+
+- Renaming a profile (`lopi edit <name> --rename <new>`) now also updates the jump hosts of
+  profiles that go through it. Before, they kept the old name and ssh treated it as a host
+  name.
+- Adding a profile, or renaming one, to a name that other profiles use as a jump host name
+  now warns that those profiles will jump through the new profile.
+
 ## [0.3.2] - 2026-10-02
 
 ### Fixed

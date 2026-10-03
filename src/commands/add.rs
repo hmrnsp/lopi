@@ -2,13 +2,14 @@ use anyhow::{Context, Result};
 
 use super::{
     ask_new_password, non_empty, non_empty_list, password_store, require_terminal, save_password,
-    stored_key, warn_about_jump,
+    stored_key, warn_about_captured_jumps, warn_about_jump,
 };
 use crate::cli::AddArgs;
 use crate::config::model::{split_target, validate_name};
 use crate::config::store::{self, StorePaths};
 use crate::config::{Auth, Config, Profile};
 use crate::ssh::args::destination;
+use crate::ssh::jump::jump_dependents;
 use crate::ui::prompt::TerminalPrompter;
 use crate::ui::wizard::{self, AddPlan};
 
@@ -77,6 +78,7 @@ fn save(plan: AddPlan) -> Result<i32> {
         save_password(secrets, &name, id, password);
     }
     warn_about_jump(&config, &name);
+    warn_about_captured_jumps(&name, &jump_dependents(&config, &name));
     Ok(0)
 }
 

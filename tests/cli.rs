@@ -712,6 +712,85 @@ fn jump_in_another_case_warns_and_is_a_host() {
 }
 
 #[test]
+fn rename_updates_jump_references() {
+    let env = Env::new();
+    env.write_config(
+        "[profiles.zayd]\nhost = \"zayd.example.com\"\nuser = \"admin\"\n\n\
+         # through the bastion\n[profiles.db]\nhost = \"10.0.0.9\"\njump = \"zayd\" # keep me\n\n\
+         [profiles.app]\nhost = \"10.0.0.10\"\njump = \"gw,zayd,root@zayd\"\n",
+    );
+    let out = env.ok(&["edit", "zayd", "--rename", "bastion"]);
+    assert_eq!(
+        out,
+        [
+            "updated 'zayd', now named 'bastion'",
+            "updated the jump of 'app' to use 'bastion'",
+            "updated the jump of 'db' to use 'bastion'",
+        ]
+    );
+    assert_eq!(
+        env.ok(&["db"]),
+        ["-J", "admin@zayd.example.com", "--", "10.0.0.9"]
+    );
+    // a host name that only looks like the old name stays a host name
+    assert_eq!(env.ok(&["app"])[1], "gw,admin@zayd.example.com,root@zayd");
+    let text = fs::read_to_string(&env.config).unwrap();
+    assert!(text.contains("# through the bastion"), "{text}");
+    assert!(text.contains("jump = \"bastion\" # keep me"), "{text}");
+}
+
+#[test]
+fn rm_refuses_a_profile_used_as_jump() {
+    let env = Env::new();
+    env.ok(&["add", "zayd", "admin@zayd.example.com"]);
+    env.ok(&["add", "db", "10.0.0.9", "-J", "zayd"]);
+    env.ok(&["add", "app", "10.0.0.10", "-J", "gw,zayd"]);
+    for args in [&["rm", "zayd"][..], &["rm", "zayd", "-y"]] {
+        let err = env.fail(args);
+        assert!(err.contains("'zayd' is the jump host of: app, db"), "{err}");
+        assert!(err.contains("lopi edit app --jump"), "{err}");
+        assert!(err.contains("nothing was removed"), "{err}");
+    }
+    assert!(env.ok(&["list"]).iter().any(|row| row.starts_with("zayd ")));
+
+    env.ok(&["edit", "db", "--jump", ""]);
+    env.ok(&["edit", "app", "--jump", "gw"]);
+    env.ok(&["rm", "zayd", "-y"]);
+}
+
+#[test]
+fn new_profile_named_like_a_jump_host_warns() {
+    let env = Env::new();
+    env.ok(&["add", "app", "10.0.0.9", "-J", "bastion"]);
+    let warning = "'app' jumps through 'bastion', which now means this profile";
+    let out = env
+        .cmd()
+        .args(["add", "bastion", "admin@b.example"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    assert!(String::from_utf8_lossy(&out.stderr).contains(warning));
+    assert_eq!(env.ok(&["app"])[..2], ["-J", "admin@b.example"]);
+
+    // renaming another profile to a name used as a jump host warns too
+    env.ok(&["add", "web", "10.0.0.10", "-J", "gw"]);
+    env.ok(&["add", "other", "gw.example"]);
+    let out = env
+        .cmd()
+        .args(["edit", "other", "--rename", "gw"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("'web' jumps through 'gw', which now means this profile"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn no_terminal_in_git_bash_explains_winpty() {
     let env = Env::new();
     let out = env

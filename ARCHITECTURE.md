@@ -24,9 +24,11 @@ src/
   ssh/               args.rs (build_args, pure), jump.rs, launch_unix.rs (exec),
                      launch_windows.rs (child process)
   ui/                prompt.rs (Prompter trait, Scripted for tests), picker.rs, wizard.rs,
-                     table.rs, tty.rs; mod.rs: profile_table (shared by `list` and the picker)
+                     table.rs, tty.rs; screen.rs (FullScreen: alternate screen + raw mode,
+                     restored on drop); reveal.rs (`passwd --show`);
+                     mod.rs: profile_table (shared by `list` and the picker)
   ui/table_picker/   full-screen table (ratatui): state.rs (keys, pure), view.rs (drawing),
-                     mod.rs (terminal setup and event loop)
+                     mod.rs (event loop)
   completion/        bash/zsh/PowerShell templates (include_str!)
   state.rs           connection history (not part of the profiles file)
   lock.rs            cross-process lock on `<file>.lock`
@@ -176,6 +178,13 @@ lopi with the prompt text as its argument. `askpass::answer` classifies the prom
   wrong server and host keys are never confirmed automatically
 
 If the store is unavailable or has no password, lopi prints a note and ssh asks as usual.
+
+`lopi passwd <name> --show` is the only way a saved password leaves lopi other than
+through askpass and backups. It refuses unless stdin, stdout and stderr are all a terminal
+(checked before the profiles file or the store is read), then `ui::reveal::show_secret`
+draws it on the alternate screen (`ui::screen::FullScreen`) with control characters
+escaped, until Enter, Esc or `q`. Leaving the alternate screen takes it off the screen and
+out of the scrollback. It only reads: the profiles file is not written.
 
 ## Backup and restore
 

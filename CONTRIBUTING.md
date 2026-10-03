@@ -122,7 +122,9 @@ These hold everywhere; a change that breaks one needs a very good reason.
    only in the OS credential store (`secrets.rs`, keyed by profile `id`) and inside
    encrypted backup files. In memory they are wrapped in `Zeroizing`. They never enter the
    clap structs (`AddArgs`, `EditArgs`); the wizard returns them separately (`AddPlan`,
-   `EditPlan`). The store is checked before the user is asked to type a password.
+   `EditPlan`). The store is checked before the user is asked to type a password. The
+   only way one is shown is `passwd --show`, which draws it on the alternate screen of a
+   terminal and refuses pipes and files.
 5. **Never build a command string.** Pass arguments one by one with `Command::arg()`, as
    `OsString`/`PathBuf` rather than `String`, so Windows paths stay intact.
 6. **Profile names are matched exactly.** Every command (connect, `rm`, `edit`, `passwd`,

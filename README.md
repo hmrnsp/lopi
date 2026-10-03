@@ -315,7 +315,7 @@ lopi office -- uptime                # run a remote command
 | `lopi completion <shell>`                 | Print a completion script (bash, zsh, powershell)                             |
 | `lopi install` / `uninstall`              | Install this binary for your user and put it on `PATH`, or remove it          |
 | `lopi update [--check] [-y]`              | Update lopi to the latest release (see [Update](#update))                     |
-| `lopi passwd [name] [--remove]`           | Save, change or delete a profile's password                                   |
+| `lopi passwd [name] [--remove \| --show]` | Save, change, delete or show a profile's password                             |
 | `lopi backup [file]`                      | Profiles, passwords and key files in one encrypted file                       |
 | `lopi restore [file]`                     | Bring a backup back; without a file, choose an automatic snapshot             |
 | `lopi ping [name]`                        | Check that a profile's ssh server answers, without logging in                 |
@@ -398,6 +398,10 @@ $ lopi vps                                      # logs in without asking
   a new host key, a key passphrase or a one-time code are always asked on the terminal.
 - If the password changes on the server: `lopi passwd vps`. To stop using it:
   `lopi passwd vps --remove`. Removing the profile deletes the password too.
+- To see a saved password (for `sudo`, or another program): `lopi passwd vps --show`. It
+  appears on a full-screen view until you press Enter, and does not stay in the
+  terminal's scrollback. It is only shown on a terminal: with the output sent to a pipe
+  or a file, lopi refuses.
 - Any program running as your user can read your credential store; lopi does not
   add a new way in.
 

@@ -27,7 +27,8 @@ you prefer not to be named.
   credential store (Windows Credential Manager, the macOS Keychain, the Secret Service on
   Linux) and inside backup files you encrypt with a passphrase. They are never written to
   the profiles file, never passed as command-line arguments or environment variables, and
-  never logged.
+  never logged. `lopi passwd <name> --show` shows one only when you ask for it, only on a
+  terminal (never to a pipe or file), and takes it off the screen when you press Enter.
 - **A password goes only to its own server.** When ssh asks lopi for a password
   (askpass), lopi answers only a password prompt for the profile's own `user@host`. Other
   prompts (a jump host's password, host key confirmation, key passphrases, one-time codes)
@@ -53,7 +54,7 @@ you prefer not to be named.
 In scope:
 
 - leaking a saved password (to a file, an argument, the environment, a log or the wrong
-  server)
+  server), or showing it anywhere but the terminal that asked for it
 - weaknesses in the backup file format or its handling of passphrases and key files
 - argument or option injection into ssh through profile values or names
 - `lopi install` / `uninstall`: changes to `PATH`, the install folder or the PowerShell

@@ -42,6 +42,7 @@ pub fn run() -> Result<i32> {
             commands::install::run(completion)
         }
         Command::Uninstall { yes } => commands::uninstall::run(yes),
+        Command::Update { check, yes } => commands::update::run(check, yes),
         Command::Completion { shell } => {
             crate::output::print(&crate::completion::script(shell))?;
             Ok(0)

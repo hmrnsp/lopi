@@ -36,6 +36,14 @@ you prefer not to be named.
   files with [age](https://age-encryption.org) using your passphrase.
 - **No command strings.** ssh is started with each argument passed separately, never
   through a shell, and lopi rejects host, user and profile names that start with `-`.
+- **Updates only when asked, and checked.** lopi uses the network itself only in
+  `lopi update`, never in the background, and only over HTTPS to GitHub. The downloaded
+  archive must match the release's published SHA-256 checksum, and the new binary must
+  start and report the expected version before it replaces the old one. lopi replaces
+  only a copy put in place by the install script or `lopi install`, never one managed by
+  cargo or another tool. The checksum guards against a damaged or altered download; it
+  cannot detect a release that was itself published by an attacker (for example through a
+  compromised GitHub account), since the checksum comes from the same release.
 - **Safe writes.** The profiles file is changed under a lock, snapshotted first, and
   written atomically (temporary file, then rename), so a crash never leaves a half-written
   file.
@@ -50,6 +58,9 @@ In scope:
 - argument or option injection into ssh through profile values or names
 - `lopi install` / `uninstall`: changes to `PATH`, the install folder or the PowerShell
   profile that go beyond what they should
+- `lopi update`: installing something other than the published release (skipped or
+  bypassed checks, a downgrade, files written anywhere but the binary's folder and the
+  install receipt), or replacing a lopi it should leave to another tool
 
 Out of scope:
 

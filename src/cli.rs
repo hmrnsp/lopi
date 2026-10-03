@@ -104,6 +104,19 @@ pub enum Command {
         yes: bool,
     },
 
+    /// Update lopi to the latest release
+    ///
+    /// Replaces lopi when the install script or `lopi install` put it in place; for other
+    /// installs (such as cargo) it says how to update.
+    Update {
+        /// Only say whether a newer release exists; exit code 1 when one does
+        #[arg(long, conflicts_with = "yes")]
+        check: bool,
+        /// Do not ask for confirmation
+        #[arg(short, long)]
+        yes: bool,
+    },
+
     /// Print a shell completion script (see --help for how to install it)
     #[command(after_long_help = COMPLETION_HELP)]
     Completion {

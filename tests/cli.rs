@@ -1449,3 +1449,316 @@ fn restoring_a_snapshot_explains_missing_passwords() {
         "{stderr}"
     );
 }
+
+// lopi update: a local web server stands in for GitHub.
+
+const NEWER: &str = "99.0.0";
+
+/// Answers GET requests for `files` (path → body), 404 for anything else, until the test
+/// process ends. Returns the base URL for `LOPI_UPDATE_URL`.
+fn serve(files: Vec<(String, Vec<u8>)>) -> String {
+    use std::io::{BufRead, BufReader, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut request = String::new();
+            let _ = reader.read_line(&mut request);
+            let mut header = String::new();
+            while reader.read_line(&mut header).is_ok_and(|n| n > 2) {
+                header.clear();
+            }
+            let path = request.split_whitespace().nth(1).unwrap_or_default();
+            let (status, body) = match files.iter().find(|(file, _)| file == path) {
+                Some((_, body)) => ("200 OK", body.as_slice()),
+                None => ("404 Not Found", &[][..]),
+            };
+            let _ = write!(
+                stream,
+                "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            let _ = stream.write_all(body);
+        }
+    });
+    format!("http://{address}/releases")
+}
+
+fn archive_name() -> String {
+    let target = lopi::update::RELEASE_TARGET.unwrap_or("no-target");
+    format!("lopi-ssh-{target}{}", lopi::update::ARCHIVE_SUFFIX)
+}
+
+/// The files of release `version` as GitHub serves them: the manifest under `latest`, and
+/// with `archive`, the archive and its checksum file (`checksum`, or the real one).
+fn release(
+    version: &str,
+    archive: Option<&[u8]>,
+    checksum: Option<&str>,
+) -> Vec<(String, Vec<u8>)> {
+    let target = lopi::update::RELEASE_TARGET.unwrap_or("no-target");
+    let name = archive_name();
+    let manifest = format!(
+        r#"{{"releases":[{{"app_name":"lopi-ssh","app_version":"{version}","artifacts":["{name}","{name}.sha256"]}}],
+           "artifacts":{{"{name}":{{"kind":"executable-zip","target_triples":["{target}"],"checksum":"{name}.sha256"}}}}}}"#
+    );
+    let mut files = vec![(
+        "/releases/latest/download/dist-manifest.json".to_string(),
+        manifest.into_bytes(),
+    )];
+    if let Some(archive) = archive {
+        let sum = checksum
+            .map(str::to_string)
+            .unwrap_or_else(|| lopi::update::checksum::sha256_hex(archive));
+        let tag = format!("/releases/download/v{version}");
+        files.push((format!("{tag}/{name}"), archive.to_vec()));
+        files.push((
+            format!("{tag}/{name}.sha256"),
+            format!("{sum} *{name}\n").into_bytes(),
+        ));
+    }
+    files
+}
+
+/// A release archive whose `lopi` is a script printing `lopi <says>`.
+#[cfg(unix)]
+fn fake_lopi_archive(says: &str) -> Vec<u8> {
+    let script = format!("#!/bin/sh\necho \"lopi {says}\"\n");
+    let mut header = tar::Header::new_gnu();
+    header.set_size(script.len() as u64);
+    header.set_mode(0o755);
+    let mut builder = tar::Builder::new(Vec::new());
+    builder
+        .append_data(&mut header, "lopi-ssh-test/lopi", script.as_bytes())
+        .unwrap();
+    let tar = builder.into_inner().unwrap();
+    let mut xz = Vec::new();
+    lzma_rs::xz_compress(&mut std::io::Cursor::new(tar), &mut xz).unwrap();
+    xz
+}
+
+impl Env {
+    /// Everything `lopi update` looks at, moved into the test folder, so no real receipt,
+    /// cargo record or install is ever seen.
+    fn update_env(&self, cmd: &mut Command, url: &str) {
+        let dir = self.dir.path();
+        cmd.env("LOPI_UPDATE_URL", url)
+            .env("XDG_CONFIG_HOME", dir.join("xdg"))
+            .env("CARGO_HOME", dir.join("cargo"))
+            .env("LOPI_INSTALL_DIR", dir.join("bin"));
+    }
+
+    /// `lopi update ...` with the binary cargo built.
+    fn update(&self, url: &str, args: &[&str]) -> Command {
+        let mut cmd = self.cmd();
+        self.update_env(&mut cmd, url);
+        cmd.arg("update").args(args);
+        cmd
+    }
+
+    /// Copies the built binary to `<test folder>/<folder>/lopi`.
+    #[cfg(unix)]
+    fn copy_of_lopi(&self, folder: &str) -> PathBuf {
+        let dir = self.dir.path().join(folder);
+        fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("lopi");
+        fs::copy(env!("CARGO_BIN_EXE_lopi"), &exe).unwrap();
+        exe
+    }
+
+    /// `lopi update ...` run by the copy at `exe`.
+    #[cfg(unix)]
+    fn update_with(&self, exe: &std::path::Path, url: &str, args: &[&str]) -> Command {
+        let mut cmd = Command::new(exe);
+        cmd.env("LOPI_CONFIG", &self.config)
+            .env("LOPI_SSH_BIN", &self.ssh)
+            .env("LOPI_DATA_DIR", self.dir.path().join("data"));
+        self.update_env(&mut cmd, url);
+        cmd.arg("update").args(args);
+        cmd
+    }
+}
+
+fn stdout_of(assert: assert_cmd::assert::Assert) -> String {
+    String::from_utf8_lossy(&assert.get_output().stdout).into_owned()
+}
+
+fn stderr_of(assert: assert_cmd::assert::Assert) -> String {
+    String::from_utf8_lossy(&assert.get_output().stderr).into_owned()
+}
+
+#[test]
+fn update_check_reports_versions() {
+    let env = Env::new();
+    let current = env!("CARGO_PKG_VERSION");
+
+    let url = serve(release(current, None, None));
+    let out = stdout_of(env.update(&url, &["--check"]).assert().success());
+    assert!(
+        out.contains(&format!("lopi {current} is up to date")),
+        "{out}"
+    );
+
+    let url = serve(release("0.0.1", None, None));
+    let out = stdout_of(env.update(&url, &["--check"]).assert().success());
+    assert!(
+        out.contains("newer than the latest release (0.0.1)"),
+        "{out}"
+    );
+
+    let url = serve(release(NEWER, None, None));
+    let out = stdout_of(env.update(&url, &["--check"]).assert().code(1));
+    assert!(
+        out.contains(&format!("lopi {NEWER} is available (you have {current})")),
+        "{out}"
+    );
+    assert!(out.contains(&format!("{url}/tag/v{NEWER}")), "{out}");
+    // the test binary runs from cargo's build folder
+    assert!(out.contains("to update, download it from"), "{out}");
+}
+
+#[test]
+fn update_failures_are_explained() {
+    let env = Env::new();
+    let url = serve(Vec::new());
+    let err = stderr_of(env.update(&url, &["--check"]).assert().failure());
+    assert!(err.contains("no published release found"), "{err}");
+
+    let err = stderr_of(
+        env.update("http://example.com/r", &["--check"])
+            .assert()
+            .failure(),
+    );
+    assert!(err.contains("https://"), "{err}");
+
+    let err = stderr_of(env.update(&url, &["--check", "-y"]).assert().code(2));
+    assert!(err.contains("cannot be used with"), "{err}");
+}
+
+#[test]
+fn update_leaves_a_build_folder_alone() {
+    let env = Env::new();
+    let url = serve(release(NEWER, Some(b"unused"), None));
+    let err = stderr_of(env.update(&url, &["-y"]).assert().failure());
+    assert!(
+        err.contains("only replaces a lopi put in place by"),
+        "{err}"
+    );
+    assert!(err.contains("download it from"), "{err}");
+}
+
+#[cfg(unix)]
+#[test]
+fn update_replaces_a_lopi_install_copy() {
+    let env = Env::new();
+    let exe = env.copy_of_lopi("bin");
+    let url = serve(release(NEWER, Some(&fake_lopi_archive(NEWER)), None));
+
+    // no terminal to confirm
+    let err = stderr_of(env.update_with(&exe, &url, &[]).assert().failure());
+    assert!(err.contains("-y to update without confirmation"), "{err}");
+
+    let out = stdout_of(env.update_with(&exe, &url, &["-y"]).assert().success());
+    assert!(
+        out.contains(&format!("updated {} to lopi {NEWER}", exe.display())),
+        "{out}"
+    );
+    let version = Command::new(&exe).arg("--version").assert().success();
+    assert_eq!(stdout_of(version).trim(), format!("lopi {NEWER}"));
+    let names: Vec<_> = fs::read_dir(exe.parent().unwrap())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect();
+    assert_eq!(names, ["lopi"], "no temporary or .old files left");
+}
+
+#[cfg(unix)]
+#[test]
+fn update_replaces_an_install_script_copy_and_its_receipt() {
+    let env = Env::new();
+    let exe = env.copy_of_lopi("script/bin");
+    let receipt = env.dir.path().join("xdg/lopi-ssh/lopi-ssh-receipt.json");
+    fs::create_dir_all(receipt.parent().unwrap()).unwrap();
+    let prefix = env.dir.path().join("script");
+    fs::write(
+        &receipt,
+        format!(
+            r#"{{"binaries":["lopi"],"install_layout":"cargo-home","install_prefix":"{}","modify_path":true,"source":{{"app_name":"lopi-ssh","name":"lopi","owner":"hmrnsp","release_type":"github"}},"version":"{}"}}"#,
+            prefix.display(),
+            env!("CARGO_PKG_VERSION")
+        ),
+    )
+    .unwrap();
+    let url = serve(release(NEWER, Some(&fake_lopi_archive(NEWER)), None));
+
+    let out = stdout_of(env.update_with(&exe, &url, &["--check"]).assert().code(1));
+    assert!(out.contains("to update, run `lopi update`"), "{out}");
+    env.update_with(&exe, &url, &["-y"]).assert().success();
+    let version = Command::new(&exe).arg("--version").assert().success();
+    assert_eq!(stdout_of(version).trim(), format!("lopi {NEWER}"));
+    let text = fs::read_to_string(&receipt).unwrap();
+    assert!(text.contains(&format!("\"version\":\"{NEWER}\"")), "{text}");
+    assert!(text.contains("\"modify_path\":true"), "{text}");
+}
+
+#[cfg(unix)]
+#[test]
+fn update_leaves_a_cargo_install_to_cargo() {
+    let env = Env::new();
+    let exe = env.copy_of_lopi("cargo/bin");
+    fs::write(
+        env.dir.path().join("cargo/.crates2.json"),
+        r#"{"installs":{"lopi-ssh 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)":{"bins":["lopi"]}}}"#,
+    )
+    .unwrap();
+    let before = fs::read(&exe).unwrap();
+    let url = serve(release(NEWER, Some(&fake_lopi_archive(NEWER)), None));
+
+    let out = stdout_of(env.update_with(&exe, &url, &["--check"]).assert().code(1));
+    assert!(out.contains("cargo install lopi-ssh --locked"), "{out}");
+    let err = stderr_of(env.update_with(&exe, &url, &["-y"]).assert().failure());
+    assert!(err.contains("installed with cargo"), "{err}");
+    assert_eq!(fs::read(&exe).unwrap(), before);
+}
+
+#[cfg(unix)]
+#[test]
+fn update_changes_nothing_when_a_check_fails() {
+    let env = Env::new();
+    let exe = env.copy_of_lopi("bin");
+    let before = fs::read(&exe).unwrap();
+    let unchanged = || {
+        assert_eq!(fs::read(&exe).unwrap(), before);
+        let names: Vec<_> = fs::read_dir(exe.parent().unwrap())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(names, ["lopi"], "no temporary files left");
+    };
+
+    let wrong_sum = "0".repeat(64);
+    let url = serve(release(
+        NEWER,
+        Some(&fake_lopi_archive(NEWER)),
+        Some(&wrong_sum),
+    ));
+    let err = stderr_of(env.update_with(&exe, &url, &["-y"]).assert().failure());
+    assert!(err.contains("is not the file that was published"), "{err}");
+    unchanged();
+
+    let url = serve(release(NEWER, Some(&fake_lopi_archive("98.0.0")), None));
+    let err = stderr_of(env.update_with(&exe, &url, &["-y"]).assert().failure());
+    assert!(
+        err.contains("says 'lopi 98.0.0' instead of 'lopi 99.0.0'"),
+        "{err}"
+    );
+    assert!(err.contains("nothing was changed"), "{err}");
+    unchanged();
+
+    let url = serve(release(NEWER, Some(b"not an archive"), None));
+    let err = stderr_of(env.update_with(&exe, &url, &["-y"]).assert().failure());
+    assert!(err.contains("not a valid .tar.xz"), "{err}");
+    unchanged();
+}

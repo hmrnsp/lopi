@@ -11,7 +11,7 @@ pub mod windows;
 
 use std::env;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
@@ -159,6 +159,55 @@ pub fn remove_exe(target: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Replaces the exe `target` with `bytes` (`lopi update`). The new exe is written to a
+/// file of its own in the same folder and renamed over `target`, so the old one is never
+/// written to in place (a running exe, or a signed one on macOS, must not be). `check` runs
+/// on the new file first; when it fails, nothing changes. On Windows a running `target` is
+/// moved to `<target>.old` first, which the next install, uninstall or update deletes.
+pub fn replace_exe(
+    target: &Path,
+    bytes: &[u8],
+    check: impl FnOnce(&Path) -> Result<()>,
+) -> Result<()> {
+    let dir = target.parent().context("the exe has no folder")?;
+    remove_leftover(target);
+    let mut staged = tempfile::Builder::new()
+        .prefix(".lopi-update-")
+        .suffix(env::consts::EXE_SUFFIX)
+        .tempfile_in(dir)
+        .with_context(|| format!("cannot write to {}", dir.display()))?;
+    staged
+        .write_all(bytes)
+        .and_then(|()| staged.as_file().sync_all())
+        .with_context(|| format!("cannot write to {}", dir.display()))?;
+    // Closed before it runs: Linux refuses to start a file that is open for writing.
+    let staged = staged.into_temp_path();
+    make_executable(&staged)?;
+    check(&staged)?;
+    swap_in(&staged, target).with_context(|| format!("cannot replace {}", target.display()))?;
+    // Renamed away: nothing left for the guard to delete.
+    let _ = staged.keep();
+    atomic::sync_dir(dir);
+    Ok(())
+}
+
+fn swap_in(staged: &Path, target: &Path) -> io::Result<()> {
+    match fs::rename(staged, target) {
+        Err(err)
+            if cfg!(windows)
+                && err.kind() == io::ErrorKind::PermissionDenied
+                && target.exists() =>
+        {
+            let old = old_path(target);
+            fs::rename(target, &old)?;
+            fs::rename(staged, target).inspect_err(|_| {
+                let _ = fs::rename(&old, target);
+            })
+        }
+        result => result,
+    }
+}
+
 fn old_path(target: &Path) -> PathBuf {
     let mut name = target.file_name().unwrap_or_default().to_os_string();
     name.push(".old");
@@ -166,7 +215,7 @@ fn old_path(target: &Path) -> PathBuf {
 }
 
 /// A `.old` copy may still be running; then it stays until a later attempt.
-fn remove_leftover(target: &Path) {
+pub(crate) fn remove_leftover(target: &Path) {
     let _ = fs::remove_file(old_path(target));
 }
 
@@ -251,6 +300,45 @@ pub mod tests {
         assert!(!old_path(&target).exists());
         // the dedicated folder goes away on Windows only
         assert_eq!(target.parent().unwrap().exists(), !cfg!(windows));
+    }
+
+    #[test]
+    fn replace_checks_the_new_exe_first() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join(format!("lopi{}", env::consts::EXE_SUFFIX));
+        fs::write(&target, b"v1").unwrap();
+        fs::write(old_path(&target), b"leftover").unwrap();
+        let only_target = || {
+            let names: Vec<_> = fs::read_dir(dir.path())
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name())
+                .collect();
+            assert_eq!(names, [target.file_name().unwrap()], "no other files left");
+        };
+
+        let err = replace_exe(&target, b"v2", |staged| {
+            assert_eq!(fs::read(staged).unwrap(), b"v2");
+            assert_eq!(
+                staged.parent(),
+                target.parent(),
+                "staged next to the target"
+            );
+            anyhow::bail!("wrong version")
+        })
+        .unwrap_err();
+        assert_eq!(err.to_string(), "wrong version");
+        assert_eq!(fs::read(&target).unwrap(), b"v1");
+        only_target();
+
+        replace_exe(&target, b"v2", |_| Ok(())).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"v2");
+        only_target();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(&target).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o755);
+        }
     }
 
     #[cfg(unix)]

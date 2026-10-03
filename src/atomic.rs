@@ -47,7 +47,7 @@ fn persist(mut tmp: NamedTempFile, path: &Path) -> io::Result<()> {
 }
 
 /// Makes the rename itself durable on Unix. Best effort: some file systems refuse it.
-fn sync_dir(dir: &Path) {
+pub(crate) fn sync_dir(dir: &Path) {
     #[cfg(unix)]
     if let Ok(dir) = fs::File::open(dir) {
         let _ = dir.sync_all();

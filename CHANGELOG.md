@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `lopi update` replaces lopi with the latest GitHub release: it downloads the archive for
+  your system, checks its SHA-256 checksum, makes sure the new binary starts, and then
+  swaps it in (also while lopi is running elsewhere). It asks first; `-y` does not ask.
+  It only replaces a lopi put in place by the install script or `lopi install`; for
+  `cargo install` and other installs it prints the command to use instead.
+  `lopi update --check` only reports whether a newer release exists, with exit code `1`
+  when one does. lopi looks for updates only when you run this command.
+
 ### Changed
 
-- `update` is now a reserved name, for the coming `lopi update` command. A profile named
-  `update` still works with `lopi connect update`; rename it with
+- `update` is now a reserved name, because of the new command. A profile named `update`
+  still works with `lopi connect update`; rename it with
   `lopi edit update --rename <new>` to keep typing it alone.
 
 ## [0.4.0] - 2026-10-03

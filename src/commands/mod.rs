@@ -13,6 +13,7 @@ pub mod ping;
 pub mod restore;
 pub mod rm;
 pub mod uninstall;
+pub mod update;
 
 use std::env;
 

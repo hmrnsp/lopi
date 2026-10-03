@@ -77,6 +77,10 @@ Environment variables used by tests:
 | `LOPI_SSH_BIN` | The ssh program to run, for example the fake ssh |
 | `LOPI_INSTALL_DIR` | Target folder of `lopi install` |
 | `LOPI_KEYRING_SERVICE` | Credential store service name; tests use `lopi-test-…` |
+| `LOPI_UPDATE_URL` | Where `lopi update` finds releases, instead of GitHub; plain `http://` is accepted for 127.0.0.1, localhost and [::1] only. The update tests serve releases from a small server on 127.0.0.1 |
+
+The update tests also set `XDG_CONFIG_HOME` and `CARGO_HOME` to temporary folders, so the
+install script's receipt and cargo's records on your machine are never read.
 
 `LOPI_ASKPASS_ID` and `LOPI_ASKPASS_TARGET` are set by lopi itself when it runs ssh with a
 saved password; only the askpass tests set them directly.
@@ -97,6 +101,9 @@ Rules for tests:
   that is not answered from the store reads the console and would wait forever.
 - **Install tests are Unix-only.** On Windows, `install` changes the registry and the real
   PowerShell profile.
+- **No network in tests.** `lopi update` tests set `LOPI_UPDATE_URL` to a local server
+  (`serve` in `tests/cli.rs`). The tests that replace a binary are Unix-only and run a copy
+  of lopi in a temporary folder; replacing a running exe on Windows is verified by hand.
 - **Interactive UI.** Tests run without a terminal. Wizards, confirmations and pickers are
   tested through `ui::prompt::scripted::Scripted`, a `Prompter` that replays answers. The
   full-screen table picker is split so it can be tested too: key handling through
@@ -156,6 +163,11 @@ These hold everywhere; a change that breaks one needs a very good reason.
   The one exception is `ping`, which never logs in: it runs ssh with `BatchMode` and
   stderr captured (`ssh::run_captured`), and answers a jump host's prompts with "no"
   through askpass (`askpass::REFUSE_ENV`).
+- **Self-update.** `lopi update` replaces only a lopi put in place by `lopi install` or by
+  the install script (found through its receipt); a copy that cargo's records list is left
+  to cargo, and anything else is left alone (`update::channel::detect`). The new binary is
+  written next to the old one, checked with `--version`, then renamed over it, never
+  written in place.
 - **Git Bash** ships its own `ssh`, which may differ from Windows' OpenSSH.
 - **No ssh on PATH** must give a clear error that says how to install it.
 

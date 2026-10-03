@@ -14,7 +14,7 @@ arguments, so your keys, agent, `known_hosts` and `~/.ssh/config` keep working.
 
 - [Features](#features)
 - [Quick start](#quick-start)
-- [Install](#install): [Linux](#linux) · [macOS](#macos) · [Windows](#windows) · [From source](#from-source)
+- [Install](#install): [Linux](#linux) · [macOS](#macos) · [Windows](#windows) · [From source](#from-source) · [Update](#update)
 - [Getting started](#getting-started)
 - [Command reference](#command-reference)
 - [Jump hosts and port forwards](#jump-hosts-and-port-forwards)
@@ -40,6 +40,7 @@ arguments, so your keys, agent, `known_hosts` and `~/.ssh/config` keep working.
   before every change.
 - **Works in every shell**: bash, zsh, PowerShell, cmd and Git Bash, with Tab completion
   for bash, zsh and PowerShell.
+- **Updates itself**: `lopi update` installs the latest release after checking it.
 
 ## Quick start
 
@@ -215,6 +216,31 @@ lopi --version
 lopi doctor          # checks ssh, the profiles file, key files and saved passwords
 ```
 
+### Update
+
+```sh
+lopi update            # asks before replacing lopi; -y does not ask
+lopi update --check    # only says whether a newer release exists (exit code 1 if so)
+```
+
+`lopi update` downloads the archive for your system from the latest
+[GitHub release](https://github.com/hmrnsp/lopi/releases/latest), checks its SHA-256
+checksum, makes sure the new binary starts, and only then replaces the old one (also while
+another lopi is running). It replaces only a lopi that it can be sure of:
+
+| Installed with                    | Update with                                       |
+| --------------------------------- | ------------------------------------------------- |
+| The install script                | `lopi update`                                     |
+| `lopi install`                    | `lopi update`                                     |
+| `cargo install`                   | `cargo install lopi-ssh --locked`                 |
+| Anything else (e.g. a package)    | that tool, or download again and `lopi install`   |
+
+For the other cases, `lopi update` says which command to use and changes nothing. It
+checks only when you run it; lopi never looks for updates in the background.
+
+lopi 0.4.0 and older have no `update` command: update those once by installing again as
+described above.
+
 ## Getting started
 
 **1. Add a profile.** Give everything on one line:
@@ -288,6 +314,7 @@ lopi office -- uptime                # run a remote command
 | `lopi path`                               | Print the location of the profiles file                                       |
 | `lopi completion <shell>`                 | Print a completion script (bash, zsh, powershell)                             |
 | `lopi install` / `uninstall`              | Install this binary for your user and put it on `PATH`, or remove it          |
+| `lopi update [--check] [-y]`              | Update lopi to the latest release (see [Update](#update))                     |
 | `lopi passwd [name] [--remove]`           | Save, change or delete a profile's password                                   |
 | `lopi backup [file]`                      | Profiles, passwords and key files in one encrypted file                       |
 | `lopi restore [file]`                     | Bring a backup back; without a file, choose an automatic snapshot             |
@@ -502,6 +529,11 @@ usually missing on servers and minimal installs; use keys there instead.
 `xattr -d com.apple.quarantine /path/to/lopi`, or allow it in _System Settings ›
 Privacy & Security_. The install script does not have this problem.
 
+**`lopi update` cannot download.** It connects to github.com over HTTPS. Behind a proxy,
+set `HTTPS_PROXY` (and `NO_PROXY` if needed), as for other command-line tools. If the
+error says the secure connection failed, your network may inspect HTTPS with its own
+certificate, which lopi does not trust; update with the install script instead.
+
 **Windows says "Windows protected your PC".** Choose _More info › Run anyway_, or run
 `Unblock-File .\lopi.exe` first.
 
@@ -528,8 +560,8 @@ first.
 
 ## Exit codes
 
-`0` success · `1` error, a question was cancelled, `doctor` found a problem, or `ping` got no
-answer · `2` usage error ·
+`0` success · `1` error, a question was cancelled, `doctor` found a problem, `ping` got no
+answer, or `update --check` found a newer release · `2` usage error ·
 `130` interrupted with Ctrl+C · otherwise the exit code of `ssh` (`255` means the
 connection failed).
 

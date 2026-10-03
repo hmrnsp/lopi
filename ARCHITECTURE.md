@@ -37,7 +37,10 @@ src/
   secrets.rs         SecretStore trait and KeyringStore (OS credential store)
   backup_bundle.rs   backup file format: tar inside age, pure functions
   install/           path_list.rs, profile_block.rs (pure); windows.rs (registry PATH);
-                     powershell.rs (completion in $PROFILE); mod.rs (copy_exe, remove_exe)
+                     powershell.rs (completion in $PROFILE); mod.rs (copy_exe, remove_exe,
+                     replace_exe)
+  update/            `lopi update`: version.rs, manifest.rs, checksum.rs, archive.rs (pure);
+                     channel.rs (how lopi was installed); http.rs (the only network code)
 ```
 
 ## Connecting
@@ -209,6 +212,36 @@ folder on the user `PATH`. No admin rights are needed.
 - Double-clicking `lopi.exe` (no arguments and a console of its own, checked with
   `GetConsoleProcessList`) offers to install, and keeps the window open until Enter.
 
+## Self-update
+
+`lopi update` (`commands/update.rs`) is the only place where lopi itself uses the network.
+It never runs on its own.
+
+1. **How was lopi installed?** `update::channel::detect` compares the running exe
+   (canonical path) with, in this order: the `lopi install` copy (`LopiInstall`); a file in
+   `$CARGO_HOME/bin` that cargo's `.crates2.json` or `.crates.toml` lists for `lopi-ssh`
+   (`Cargo`); the binary named by the install script's receipt, `lopi-ssh-receipt.json`
+   (`Installer`). Anything else is `Unknown`. Only `LopiInstall` and `Installer` are
+   replaced; the others get the command to use instead. cargo wins over a receipt, because
+   replacing a file that cargo tracks would leave cargo's records wrong.
+2. **Which release?** `update::http::Releases` reads
+   `<base>/latest/download/dist-manifest.json` from GitHub (a download, not the rate-limited
+   API). `update::manifest` takes the `lopi-ssh` version and the archive for
+   `update::RELEASE_TARGET`, a target fixed at build time (Linux builds use the musl
+   archive). Only a newer version is installed, never an older one.
+3. **Download and check.** The archive and its `.sha256` file come from the fixed tag
+   (`<base>/download/v<version>/…`), so a release published meanwhile cannot mix in. The
+   checksum file must agree with the manifest's own checksum and with the archive
+   (`update::checksum`). HTTPS only, through ureq with rustls and the bundled Mozilla roots;
+   proxies come from `HTTPS_PROXY`/`ALL_PROXY`/`NO_PROXY`.
+4. **Unpack.** `update::archive` takes the one regular `lopi` (`.tar.xz`, lzma-rs + tar) or
+   `lopi.exe` (`.zip` on Windows) out of the archive, in memory.
+5. **Replace.** `install::replace_exe` writes the new binary to a temporary file in the same
+   folder, runs it with `--version` (it must print `lopi <version>`), then renames it over
+   the old one. A running exe on Windows is renamed to `.old` first, as in `install`.
+   Nothing is written in place, so a running lopi keeps working and macOS never sees a
+   changed signed file. The receipt's `version` is updated afterwards.
+
 ## Shell completion
 
 `lopi completion bash|zsh|powershell` prints a small template from `src/completion/`.
@@ -228,6 +261,7 @@ profile name).
 | History | `~/.local/share/lopi/state.toml` | `~/Library/Application Support/lopi/state.toml` | `%LOCALAPPDATA%\lopi\state.toml` | `LOPI_DATA_DIR` |
 | Passwords | Secret Service, service `lopi` | Keychain, service `lopi` | Credential Manager, service `lopi` | `LOPI_KEYRING_SERVICE` |
 | Installed exe | `~/.local/bin/lopi` | `~/.local/bin/lopi` | `%LOCALAPPDATA%\Programs\lopi\lopi.exe` | `LOPI_INSTALL_DIR` |
+| Install script receipt (read by `update`; written by the script) | `~/.config/lopi-ssh/lopi-ssh-receipt.json` | same | `%LOCALAPPDATA%\lopi-ssh\lopi-ssh-receipt.json` | `XDG_CONFIG_HOME` |
 
 ## Testing strategy
 
@@ -236,7 +270,8 @@ profile name).
   and CRLF), `backup_bundle`, `askpass::answer`, the wizards and pickers through
   `Scripted`, and the table picker through `PickerState::handle` and `TestBackend`.
 - **Integration tests** (`tests/cli.rs`) run the binary against a temporary profiles file
-  and a fake ssh that prints its arguments.
+  and a fake ssh that prints its arguments. `lopi update` is tested against a small web
+  server on 127.0.0.1 that serves a fake release.
 - **Manual tests** marked `#[ignore]` use the real credential store.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#testing) for the rules tests must follow.

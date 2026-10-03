@@ -21,3 +21,4 @@ pub mod ssh;
 pub mod state;
 pub mod time;
 pub mod ui;
+pub mod update;

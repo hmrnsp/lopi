@@ -253,6 +253,14 @@ updated 'office'
 $ lopi rm zayd
 ```
 
+For scripts, `lopi list --json` prints the same profiles as a JSON array. Every key is
+always there (`null` when unset): `name`, `host`, `user`, `port`, `key`, `jump`, `forward`,
+`auth`, `note` and `last_used` (RFC 3339, UTC). Saved passwords are never included.
+
+```sh
+lopi list --json | jq -r '.[] | select(.auth == "password") | .name'
+```
+
 **5. Pass extra options or run a command.** Anything after the name goes to `ssh`;
 anything after `--` runs on the server:
 
@@ -269,7 +277,7 @@ lopi office -- uptime                # run a remote command
 | `lopi <name>`                             | Connect to the profile with exactly this name                                 |
 | `lopi <name> -L 8080:localhost:80`        | Extra `ssh` options for this connection                                       |
 | `lopi <name> -- uptime`                   | Run a remote command (everything after `--`)                                  |
-| `lopi list [--recent]`                    | Show profiles, optionally most recently used first                            |
+| `lopi list [--recent] [--json]`           | Show profiles, optionally most recently used first; `--json` for scripts      |
 | `lopi add [name] [[user@]host] [options]` | Add a profile; asks for anything missing                                      |
 | `lopi edit [name] [options]`              | Change given fields; without options, a guided edit                           |
 | `lopi rm [name] [-y]`                     | Remove a profile after confirmation                                           |

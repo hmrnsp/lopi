@@ -12,7 +12,7 @@ pub fn run() -> Result<i32> {
     };
 
     match command {
-        Command::List { recent } => commands::list::run(recent),
+        Command::List { recent, json } => commands::list::run(recent, json),
         Command::Add(args) => commands::add::run(args),
         Command::Rm { name, yes } => commands::rm::run(name, yes),
         Command::Edit(args) => commands::edit::run(args),

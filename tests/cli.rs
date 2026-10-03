@@ -612,6 +612,31 @@ fn list_recent_orders_by_last_connection() {
 }
 
 #[test]
+fn list_json_for_scripts() {
+    let env = Env::new();
+    let json = |args: &[&str]| -> serde_json::Value {
+        serde_json::from_str(&env.ok(args).join("\n")).unwrap()
+    };
+    // no profiles: an empty array on stdout, not the hint
+    assert_eq!(json(&["list", "--json"]), serde_json::json!([]));
+
+    env.ok(&["add", "a", "root@h", "-p", "2222", "-n", "first"]);
+    env.ok(&["add", "b", "h2"]);
+    env.ok(&["b"]);
+    let all = json(&["list", "--json"]);
+    assert_eq!(all[0]["name"], "a");
+    assert_eq!(all[0]["user"], "root");
+    assert_eq!(all[0]["port"], 2222);
+    assert_eq!(all[0]["note"], "first");
+    assert_eq!(all[0]["last_used"], serde_json::Value::Null);
+    assert_eq!(all[1]["auth"], "agent");
+    assert!(all[1]["last_used"].as_str().unwrap().ends_with('Z'));
+
+    let recent = json(&["list", "--json", "--recent"]);
+    assert_eq!(recent[0]["name"], "b");
+}
+
+#[test]
 fn jump_and_forward_from_the_command_line() {
     let env = Env::new();
     env.ok(&["add", "bastion", "admin@b.example", "-p", "2200"]);

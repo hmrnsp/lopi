@@ -22,6 +22,9 @@ pub enum Command {
         /// Most recently used first
         #[arg(short, long)]
         recent: bool,
+        /// Print a JSON array for scripts (`[]` when there are no profiles)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Add a new profile (asks for what is missing when run in a terminal)

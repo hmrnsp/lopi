@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `lopi list --json` prints the profiles as a JSON array for scripts, with the same order
+  options (`--recent`). Passwords are never included.
+
 ### Changed
 
 - `lopi rm` refuses to remove a profile that another profile uses as its jump host, and

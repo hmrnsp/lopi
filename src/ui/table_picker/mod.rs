@@ -11,13 +11,12 @@ use anyhow::{Context, Result};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::crossterm::event;
-use ratatui::crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
-use ratatui::crossterm::{cursor, execute};
 use ratatui::widgets::TableState;
 
 use self::state::{Outcome, PickerState};
 use self::view::View;
 use crate::error::Abort;
+use crate::ui::screen::FullScreen;
 
 /// Shows `rows` under `header` until the user chooses one; returns its index. Fails with
 /// [`Abort`] on Esc or Ctrl+C. The terminal is back to normal when this returns, so ssh
@@ -27,11 +26,9 @@ pub fn pick_row(title: &str, header: &[&str], rows: &[Vec<String>]) -> Result<us
     let mut state = PickerState::new(rows);
     let mut scroll = TableState::default();
 
-    terminal::enable_raw_mode().context("cannot switch the terminal to raw mode")?;
     // Declared before the terminal, so dropped after it: from here on, an early return or
     // a panic still restores the terminal.
-    let _restore = Restore;
-    execute!(io::stderr(), EnterAlternateScreen).context("cannot open the full-screen view")?;
+    let _screen = FullScreen::enter()?;
     // stderr is unbuffered: without this, every cursor move and color change of a frame
     // is its own write, and each one is slow on a Windows console.
     let backend = CrosstermBackend::new(BufWriter::new(io::stderr()));
@@ -56,15 +53,3 @@ pub fn pick_row(title: &str, header: &[&str], rows: &[Vec<String>]) -> Result<us
 }
 
 const KEYBOARD: &str = "cannot read the keyboard";
-
-/// Leaves the alternate screen and raw mode and shows the cursor: the state the shell,
-/// ssh (keys typed into the session) and the inquire prompts expect.
-struct Restore;
-
-impl Drop for Restore {
-    fn drop(&mut self) {
-        // Nothing useful to do on failure; the user's terminal gets the best attempt.
-        let _ = execute!(io::stderr(), LeaveAlternateScreen, cursor::Show);
-        let _ = terminal::disable_raw_mode();
-    }
-}

@@ -1,5 +1,6 @@
 pub mod picker;
 pub mod prompt;
+pub mod screen;
 pub mod table;
 pub mod table_picker;
 pub mod tty;

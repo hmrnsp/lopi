@@ -1153,6 +1153,7 @@ fn install_names_are_reserved() {
     let env = Env::new();
     assert!(env.fail(&["add", "install", "h"]).contains("reserved"));
     assert!(env.fail(&["add", "Uninstall", "h"]).contains("reserved"));
+    assert!(env.fail(&["add", "update", "h"]).contains("reserved"));
 }
 
 /// Only reads the credential store (an id that cannot exist), never writes to it.

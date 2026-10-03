@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `update` is now a reserved name, for the coming `lopi update` command. A profile named
+  `update` still works with `lopi connect update`; rename it with
+  `lopi edit update --rename <new>` to keep typing it alone.
+
 ## [0.4.0] - 2026-10-03
 
 ### Added

@@ -27,6 +27,7 @@ pub const RESERVED_NAMES: &[&str] = &[
     "sync",
     "install",
     "uninstall",
+    "update",
     "__complete",
 ];
 
@@ -441,6 +442,13 @@ fn check_ssh_word(what: &str, value: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_subcommand_is_reserved() {
+        for name in crate::completion::visible_subcommands() {
+            assert!(is_reserved(&name), "add '{name}' to RESERVED_NAMES");
+        }
+    }
 
     fn profile(host: &str) -> Profile {
         Profile::new(host)

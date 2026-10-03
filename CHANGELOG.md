@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-03
+
 ### Added
 
 - `lopi passwd <name> --show` shows a saved password, for example to type it at a `sudo`
@@ -136,7 +138,8 @@ First public release.
 - Prebuilt binaries for Windows (x86_64, MSVC) and Linux (x86_64, musl) with shell and
   PowerShell installers.
 
-[Unreleased]: https://github.com/hmrnsp/lopi/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/hmrnsp/lopi/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/hmrnsp/lopi/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/hmrnsp/lopi/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/hmrnsp/lopi/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/hmrnsp/lopi/compare/v0.3.1...v0.3.2

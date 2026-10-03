@@ -38,13 +38,22 @@ tar = { version = "0.4.46", default-features = false }
 tempfile = "3.27.0"
 toml = "1.1.6"
 toml_edit = "0.25.15"
+ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 zeroize = "1.9.0"
+
+# Release archives: .tar.xz everywhere but Windows, .zip on Windows.
+[target."cfg(not(windows))".dependencies]
+lzma-rs = "0.3.0"
 
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
 assert_cmd = "2.2.2"
+# Both archive formats are tested on every system.
+lzma-rs = "0.3.0"
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # The profile that 'dist' will build with
 [profile.dist]

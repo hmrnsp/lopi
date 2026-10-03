@@ -1,9 +1,11 @@
 //! `lopi update`: find the latest release, download the archive for this system, check it
-//! and replace the running binary. Pure parts (`version`, `manifest`, `checksum`, `channel`'s
-//! `detect`) are separate so they can be tested without a network.
+//! and replace the running binary. Only `http` touches the network; the other parts are
+//! pure (or read local files only) so they can be tested without one.
 
+pub mod archive;
 pub mod channel;
 pub mod checksum;
+pub mod http;
 pub mod manifest;
 pub mod version;
 

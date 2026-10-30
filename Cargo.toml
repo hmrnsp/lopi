@@ -32,7 +32,7 @@ rpassword = "7.5.4"
 self-replace = "1.5.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-sha2 = "0.10.9"
+sha2 = "0.11.0"
 strsim = "0.11.1"
 tar = { version = "0.4.46", default-features = false }
 tempfile = "3.27.0"
@@ -47,13 +47,13 @@ lzma-rs = "0.3.0"
 
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
-zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.1.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
 assert_cmd = "2.2.2"
 # Both archive formats are tested on every system.
 lzma-rs = "0.3.0"
-zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.1.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # The profile that 'dist' will build with
 [profile.dist]

@@ -23,6 +23,7 @@ arguments, so your keys, agent, `known_hosts` and `~/.ssh/config` keep working.
 - [Shell completion](#shell-completion)
 - [Where lopi keeps its files](#where-lopi-keeps-its-files)
 - [Troubleshooting](#troubleshooting)
+- [Using lopi with AI agents](#using-lopi-with-ai-agents)
 - [Uninstall](#uninstall)
 
 ## Features
@@ -545,6 +546,14 @@ certificate, which lopi does not trust; update with the install script instead.
 console, so the interactive table and questions cannot run there: use `winpty lopi` or
 Windows Terminal. Git for Windows also ships its own `ssh`, which may differ from
 Windows' OpenSSH; set `ssh_bin` in the profiles file to pick one.
+
+## Using lopi with AI agents
+
+An AI agent with terminal access (Claude Code and similar) can run `lopi` directly; no
+plugin or server is needed. [docs/AI-AGENTS.md](docs/AI-AGENTS.md) has a short block to
+paste into the agent's instructions (`CLAUDE.md`, `AGENTS.md`), in English and in
+Indonesian. It tells the agent which commands are safe (`lopi list --json`,
+`lopi ping`), which need your approval (`lopi <name> -- <command>`) and which to avoid.
 
 ## Uninstall
 

@@ -25,7 +25,11 @@ fn is_sha256_hex(text: &str) -> bool {
 
 /// Lowercase hex SHA-256 of `bytes`.
 pub fn sha256_hex(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    // sha2 0.11 no longer implements `LowerHex` for the digest, so encode it by hand.
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 /// Fails unless `bytes` has the digest `expected` (lowercase hex).
@@ -52,6 +56,19 @@ mod tests {
         assert!(verify(b"", EMPTY, "a.tar.xz").is_ok());
         let err = verify(b"x", EMPTY, "a.tar.xz").unwrap_err().to_string();
         assert!(err.contains("not the file that was published"), "{err}");
+    }
+
+    #[test]
+    fn hashes_known_vector() {
+        // Its digest has the bytes 0x01, 0x03 and 0x00, so it shows that each byte
+        // is written as two digits.
+        let digest = sha256_hex(b"abc");
+        assert_eq!(
+            digest,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(digest.len(), 64);
+        assert!(is_sha256_hex(&digest) && digest == digest.to_ascii_lowercase());
     }
 
     #[test]
